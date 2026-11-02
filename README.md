@@ -18,12 +18,20 @@ Then open http://localhost:5173.
 - WASD or arrow keys: move
 - Mouse: aim
 - Left click: swipe. A red cone shows the wind-up before it lands, so the target can react.
-- Hold right click: block hits from the front (takes a little damage, no stun)
-- Space or Shift: dash (swipes pass through you mid-dash)
+- E: charge. An orange lane shows where you'll lunge. Breaks blocks; dash sideways to dodge one.
+- Hold right click: block swipes from the front (takes a little damage and stamina, no stun)
+- Space or Shift: dash (attacks pass through you mid-dash)
 - Stand on food to eat it (salmon in the river, berries on the banks)
+- M: mute
 - Hold T: fast-forward the clock (testing only)
 
-Bears have health. At zero you're knocked out, lose 10% of your weight, and respawn on a bank after 3 seconds.
+The start screen sits over a live river with the NPC bears. Enter a name and press Play. After the weigh-in, Enter plays again and Esc goes back to the menu.
+
+Swipe, charge, dash and blocking all use stamina (the blue bar). Run out while blocking and your guard breaks.
+
+Bears have health. At zero you're knocked out, lose 10% of your weight, drop 2 salmon, and respawn on a bank after 3 seconds.
+
+Fish stealing: hit a bear while it's eating salmon and the fish gets knocked toward you, loose and quick to eat.
 
 ## What's in the prototype
 
@@ -34,7 +42,7 @@ Bears have health. At zero you're knocked out, lose 10% of your weight, and resp
 - Clock at 1 real second = 1 game minute, one game day per round (24 minutes), with day and night
 - HUD with weight, clock, leaderboard; end screen with the final weigh-in
 
-All art is placeholder shapes drawn in code.
+All art is drawn in code and all sound and music is synthesized with Web Audio ([src/audio.js](src/audio.js)), so there are no asset files yet. Both are placeholders until real art and Chris's music exist.
 
 ## Tuning
 
@@ -47,6 +55,7 @@ src/
   main.js            Phaser game setup
   config.js          all tunable numbers
   textures.js        placeholder art generated at runtime
+  audio.js           synthesized sound effects and music loop
   entities/Bear.js   bear movement, weight, eating, swipe
   systems/Food.js    berry bushes, salmon spawning, salmon runs
   systems/npcBrain.js NPC bear behaviour

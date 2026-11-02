@@ -15,11 +15,11 @@ export class UIScene extends Phaser.Scene {
     this.weightText = this.add.text(16, 14, '', { ...TEXT, fontSize: '26px' });
     this.clockText = this.add.text(16, 48, '', TEXT);
     this.healthBar = this.add.graphics();
-    this.actionText = this.add.text(16, 96, '', TEXT);
+    this.actionText = this.add.text(16, 106, '', TEXT);
     this.helpText = this.add.text(
       16,
       0,
-      'WASD: move  ·  mouse: aim  ·  left click: swipe  ·  hold right click: block  ·  Space/Shift: dash  ·  stand on food to eat  ·  hold T: fast-forward',
+      'WASD: move  ·  mouse: aim  ·  left click: swipe  ·  E: charge  ·  hold right click: block  ·  Space/Shift: dash  ·  M: mute  ·  hold T: fast-forward',
       { ...TEXT, fontSize: '13px' },
     );
     this.respawnText = this.add.text(0, 0, '', { ...TEXT, fontSize: '36px' }).setOrigin(0.5);
@@ -53,9 +53,14 @@ export class UIScene extends Phaser.Scene {
     this.healthBar.clear();
     this.healthBar.fillStyle(0x000000, 0.6).fillRect(15, 75, 202, 16);
     this.healthBar.fillStyle(pct > 0.5 ? 0x5ad45a : pct > 0.25 ? 0xe8c33a : 0xe0463a).fillRect(16, 76, 200 * pct, 14);
+    // Stamina bar just under health
+    this.healthBar.fillStyle(0x000000, 0.6).fillRect(15, 92, 202, 8);
+    this.healthBar.fillStyle(0x4fb3ff).fillRect(16, 93, 200 * (p.stamina / CONFIG.stamina.max), 6);
 
     const ready = (cd) => (cd > 0 ? `${cd.toFixed(1)}s` : 'ready');
-    this.actionText.setText(`Swipe: ${ready(p.swipeCooldown)}   Dash: ${ready(p.dashCooldown)}`);
+    this.actionText.setText(
+      `Swipe: ${ready(p.swipeCooldown)}   Charge: ${ready(p.chargeCooldown)}   Dash: ${ready(p.dashCooldown)}`,
+    );
     this.respawnText
       .setText(p.dead ? `Knocked out! Respawning in ${Math.ceil(p.respawnTimer)}` : '')
       .setPosition(width / 2, height / 2);
@@ -63,7 +68,7 @@ export class UIScene extends Phaser.Scene {
 
     const board = [...g.bears]
       .sort((a, b) => b.weight - a.weight)
-      .map((b, i) => `${i + 1}. ${b.isPlayer ? '» You' : b.name}  ${Math.round(b.weight)} lb`)
+      .map((b, i) => `${i + 1}. ${b.isPlayer ? `» ${b.name}` : b.name}  ${Math.round(b.weight)} lb`)
       .join('\n');
     this.boardText.setText(board).setX(width - 16);
     this.announceText.setX(width / 2);

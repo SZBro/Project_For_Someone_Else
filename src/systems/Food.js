@@ -4,6 +4,7 @@ import { CONFIG } from '../config.js';
 const F = CONFIG.food;
 const R = CONFIG.river;
 const W = CONFIG.world;
+const L = CONFIG.loot;
 
 // Owns berry bushes, salmon at fishing spots, and salmon-run waves.
 export class FoodSystem {
@@ -50,12 +51,48 @@ export class FoodSystem {
     this.items.push(fish);
   }
 
+  // A loose salmon on the ground: quick to eat, not tied to a fishing spot.
+  addLooseSalmon(x, y) {
+    const fish = this.scene.add.image(x, y, 'salmon').setDepth(3).setRotation(Math.random() * Math.PI * 2);
+    fish.setData({ type: 'salmon', weight: F.salmon.weight, eatSeconds: L.looseEatSeconds, available: true, spot: null });
+    this.scene.tweens.add({ targets: fish, scale: { from: 0.9, to: 1.15 }, yoyo: true, repeat: -1, duration: 250 });
+    this.items.push(fish);
+    return fish;
+  }
+
+  // Fish stealing: a salmon being eaten gets knocked toward whoever landed the hit.
+  knockLoose(item, attacker) {
+    if (item.getData('type') !== 'salmon' || !item.active) return;
+    this.detachFromSpot(item);
+    item.setData('eatSeconds', L.looseEatSeconds);
+    // Travel up to knockDistance, but stop where the attacker can reach it.
+    const toAttacker = new Phaser.Math.Vector2(attacker.x - item.x, attacker.y - item.y);
+    const travel = Math.max(0, Math.min(L.knockDistance, toAttacker.length() - attacker.radius - 4));
+    const dir = toAttacker.normalize().scale(travel);
+    this.scene.tweens.add({ targets: item, x: item.x + dir.x, y: item.y + dir.y, duration: 180, ease: 'Quad.easeOut' });
+  }
+
+  // A knocked-out bear drops some fish where it fell.
+  dropSalmon(x, y, count) {
+    for (let i = 0; i < count; i++) {
+      const fish = this.addLooseSalmon(x, y);
+      const p = Phaser.Math.RandomXY(new Phaser.Math.Vector2(), Phaser.Math.Between(25, 55));
+      this.scene.tweens.add({ targets: fish, x: x + p.x, y: y + p.y, duration: 250, ease: 'Quad.easeOut' });
+    }
+  }
+
+  detachFromSpot(item) {
+    const spot = item.getData('spot');
+    if (!spot) return;
+    spot.salmon = spot.salmon.filter((f) => f !== item);
+    item.setData('spot', null);
+  }
+
   // Called when a bear finishes eating an item.
   consume(item) {
     item.setData('available', false);
     if (item.getData('type') === 'salmon') {
-      const spot = item.getData('spot');
-      spot.salmon = spot.salmon.filter((f) => f !== item);
+      this.detachFromSpot(item);
       this.items = this.items.filter((f) => f !== item);
       item.destroy();
     } else {

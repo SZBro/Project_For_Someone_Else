@@ -64,6 +64,29 @@ export const CONFIG = {
     moveSpeedMultiplier: 0.5, // movement while winding up
   },
 
+  stamina: {
+    max: 100,
+    regenPerSecond: 30,
+    regenDelaySeconds: 0.7, // pause after spending stamina before it refills
+    swipeCost: 15,
+    dashCost: 30,
+    chargeCost: 40,
+    blockDrainPerSecond: 12,
+    blockHitCost: 15, // blocking a swipe costs stamina; run out and your guard breaks
+    guardBreakStunSeconds: 0.8,
+  },
+
+  // Slow, heavy lunge that breaks blocks. Dash sideways to dodge it.
+  charge: {
+    windupSeconds: 0.45,
+    speed: 620,
+    durationSeconds: 0.32,
+    damage: 16,
+    knockback: 800,
+    stunSeconds: 0.7,
+    cooldownSeconds: 2.5,
+  },
+
   dash: {
     speed: 700,
     durationSeconds: 0.18,
@@ -82,7 +105,20 @@ export const CONFIG = {
     names: ['Chunk', '747', 'Otis', 'Grazer', 'Holly'],
     thinkSeconds: 0.3,
     swipeChance: 0.5, // chance to swipe a nearby rival when contesting food
-    reactChance: 0.55, // chance to block or dash when a swipe is aimed at them
+    reactChance: 0.55, // chance to block or dash when a swipe or charge is aimed at them
     blockSeconds: 0.6,
+    chargeChance: 0.25, // chance to charge a rival at medium range near their food
+  },
+
+  // Fish stealing: hit a bear while it eats salmon and the fish gets knocked toward you.
+  loot: {
+    knockDistance: 55,
+    looseEatSeconds: 0.5, // loose fish are quick to grab
+    salmonDroppedOnKnockout: 2,
+  },
+
+  feel: {
+    hitStopMs: 70, // brief freeze on hits involving the player
+    damageNumbers: true,
   },
 };

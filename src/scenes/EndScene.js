@@ -21,15 +21,15 @@ export class EndScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const lines = results.map((r, i) => `${i + 1}.  ${r.isPlayer ? 'You' : r.name}  ${r.weight} lb`).join('\n');
+    const lines = results.map((r, i) => `${i + 1}.  ${r.name}${r.isPlayer ? ' (you)' : ''}  ${r.weight} lb`).join('\n');
     this.add.text(width / 2, height * 0.3, lines, { ...TEXT, fontSize: '24px', align: 'center' }).setOrigin(0.5, 0);
 
     this.add
-      .text(width / 2, height * 0.8, 'Press Enter or click to play again', { ...TEXT, fontSize: '22px' })
+      .text(width / 2, height * 0.8, 'Enter or click: play again   ·   Esc: back to menu', { ...TEXT, fontSize: '22px' })
       .setOrigin(0.5);
 
-    const restart = () => this.scene.start('Game');
-    this.input.keyboard.once('keydown-ENTER', restart);
-    this.input.once('pointerdown', restart);
+    this.input.keyboard.once('keydown-ENTER', () => this.scene.start('Game', { started: true }));
+    this.input.once('pointerdown', () => this.scene.start('Game', { started: true }));
+    this.input.keyboard.once('keydown-ESC', () => this.scene.start('Game', { started: false }));
   }
 }
