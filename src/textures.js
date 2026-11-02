@@ -79,6 +79,89 @@ export function createTextures(scene) {
   g.generateTexture('tree', 84, 88);
   g.clear();
 
+  // ---- Wildlife, all top-down and facing right ----
+
+  // Deer: tan body, white rump, small antlers
+  g.fillStyle(0x000000, 0.2);
+  g.fillEllipse(24, 16, 40, 18);
+  g.fillStyle(0xb07a45);
+  g.fillEllipse(22, 14, 36, 16);
+  g.fillStyle(0xf2e6d0);
+  g.fillCircle(6, 14, 4); // white tail patch
+  g.fillStyle(0xa06c3b);
+  g.fillEllipse(42, 14, 12, 9); // head
+  g.lineStyle(2, 0x6b4a2a);
+  g.lineBetween(40, 10, 34, 3);
+  g.lineBetween(40, 18, 34, 25);
+  g.lineBetween(37, 6, 40, 2);
+  g.lineBetween(37, 22, 40, 26);
+  g.fillStyle(0x222222);
+  g.fillCircle(48, 14, 1.5);
+  g.generateTexture('deer', 52, 28);
+  g.clear();
+
+  // Fox: orange with a white-tipped bushy tail
+  g.fillStyle(0xd0662a);
+  g.fillEllipse(8, 10, 16, 8); // tail
+  g.fillStyle(0xf5efe6);
+  g.fillCircle(2, 10, 3);
+  g.fillStyle(0xe0742e);
+  g.fillEllipse(20, 10, 18, 10);
+  g.fillCircle(30, 10, 5.5);
+  g.fillTriangle(29, 4, 33, 2, 32, 7);
+  g.fillTriangle(29, 16, 33, 18, 32, 13);
+  g.fillStyle(0xf5efe6);
+  g.fillTriangle(33, 8, 38, 10, 33, 12);
+  g.fillStyle(0x222222);
+  g.fillCircle(38, 10, 1.3);
+  g.generateTexture('fox', 40, 20);
+  g.clear();
+
+  // Gull: white body, grey wings
+  g.fillStyle(0xa9b0b6);
+  g.fillEllipse(11, 4, 10, 6);
+  g.fillEllipse(11, 16, 10, 6);
+  g.fillStyle(0xffffff);
+  g.fillEllipse(11, 10, 16, 7);
+  g.fillStyle(0xf2b134);
+  g.fillTriangle(19, 9, 23, 10, 19, 11);
+  g.generateTexture('gull', 24, 20);
+  g.clear();
+
+  // Eagle: wide dark wings, white head and tail
+  g.fillStyle(0x3f2a1a);
+  g.fillEllipse(24, 22, 16, 40); // wings
+  g.fillStyle(0x5a3d25);
+  g.fillEllipse(24, 22, 28, 12); // body
+  g.fillStyle(0xffffff);
+  g.fillCircle(38, 22, 5);
+  g.fillTriangle(10, 22, 4, 17, 4, 27);
+  g.fillStyle(0xf2b134);
+  g.fillTriangle(42, 20, 46, 22, 42, 24);
+  g.generateTexture('eagle', 48, 44);
+  g.clear();
+
+  // Squirrel: small with a big tail
+  g.fillStyle(0x9a6a3e);
+  g.fillEllipse(5, 7, 10, 9); // tail
+  g.fillStyle(0x7a5232);
+  g.fillEllipse(13, 7, 10, 6);
+  g.fillCircle(18, 7, 3);
+  g.generateTexture('squirrel', 22, 14);
+  g.clear();
+
+  // Meat dropped by hunted animals: a cartoon drumstick
+  g.fillStyle(0xf3ead8);
+  g.fillRect(2, 10, 10, 4); // bone
+  g.fillCircle(3, 9, 3);
+  g.fillCircle(3, 15, 3);
+  g.fillStyle(0xa8432f);
+  g.fillEllipse(19, 12, 18, 16);
+  g.fillStyle(0xc85a40);
+  g.fillEllipse(21, 10, 10, 8);
+  g.generateTexture('meat', 30, 24);
+  g.clear();
+
   // Water ripples, tiled and scrolled across the river
   g.fillStyle(0xffffff, 0.16);
   for (let i = 0; i < 14; i++) {

@@ -4,6 +4,7 @@ import { createTextures } from '../textures.js';
 import { Bear } from '../entities/Bear.js';
 import { FoodSystem } from '../systems/Food.js';
 import { updateNpc } from '../systems/npcBrain.js';
+import { AnimalSystem } from '../systems/Animals.js';
 import { audio } from '../audio.js';
 
 const W = CONFIG.world;
@@ -23,6 +24,7 @@ export class GameScene extends Phaser.Scene {
     this.drawMap();
 
     this.food = new FoodSystem(this);
+    this.animals = new AnimalSystem(this, this.food);
 
     const name = this.registry.get('playerName') || 'You';
     this.player = new Bear(this, 1200, 420, { name, tint: 0xd9a066, isPlayer: true });
@@ -61,8 +63,11 @@ export class GameScene extends Phaser.Scene {
     });
     this.events.on('knockout', this.onKnockout, this);
     this.events.on('sfx', (name, bear) => audio[name](this.volumeAt(bear)));
+    this.events.on('swipeLanded', (bear, reach) => this.animals.onSwipe(bear, reach));
     // Scene events outlive a restart, so drop these listeners when the round ends.
-    this.events.once('shutdown', () => ['hit', 'guardBreak', 'knockout', 'sfx'].forEach((e) => this.events.off(e)));
+    this.events.once('shutdown', () =>
+      ['hit', 'guardBreak', 'knockout', 'sfx', 'swipeLanded'].forEach((e) => this.events.off(e)),
+    );
 
     this.hitStop = 0;
     this.gameMinutes = 0;
@@ -313,6 +318,8 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    this.animals.update(dt, this.bears);
+    this.bears.forEach((b) => b.isCharging && this.animals.onCharge(b));
     const announcement = this.food.update(dt);
     if (announcement && this.started) {
       this.events.emit('announce', announcement);

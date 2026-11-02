@@ -72,6 +72,15 @@ export class FoodSystem {
     this.scene.tweens.add({ targets: item, x: item.x + dir.x, y: item.y + dir.y, duration: 180, ease: 'Quad.easeOut' });
   }
 
+  // Meat from a hunted animal.
+  addMeat(x, y, weight, eatSeconds) {
+    const meat = this.scene.add.image(x, y, 'meat').setDepth(3).setRotation(Math.random() * Math.PI * 2);
+    meat.setData({ type: 'meat', weight, eatSeconds, available: true, spot: null });
+    this.scene.tweens.add({ targets: meat, scale: { from: 0.4, to: 1 }, duration: 200, ease: 'Back.easeOut' });
+    this.items.push(meat);
+    return meat;
+  }
+
   // A knocked-out bear drops some fish where it fell.
   dropSalmon(x, y, count) {
     for (let i = 0; i < count; i++) {
@@ -91,7 +100,7 @@ export class FoodSystem {
   // Called when a bear finishes eating an item.
   consume(item) {
     item.setData('available', false);
-    if (item.getData('type') === 'salmon') {
+    if (item.getData('type') !== 'berries') {
       this.detachFromSpot(item);
       this.items = this.items.filter((f) => f !== item);
       item.destroy();

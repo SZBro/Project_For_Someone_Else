@@ -38,7 +38,8 @@ Fish stealing: hit a bear while it's eating salmon and the fish gets knocked tow
 - One top-down river map with fishing spots and berry bushes
 - Weight goes up when you eat, drains slowly over time, and makes you slower
 - Salmon runs: every couple of minutes one fishing spot gets a surge of salmon
-- NPC bears (Chunk, 747, Otis, Grazer, Holly) that find food and swipe rivals
+- NPC bears with personalities: Chunk bullies smaller bears, 747 camps the falls, Otis avoids trouble, Grazer goes after bigger bears, Holly picks on bears that are eating. They hold grudges, retreat to rest when hurt, wander, react with human-ish delays, and sometimes whiff. Tune them in `npc.personalities`.
+- Huntable wildlife that drops meat when caught (deer 45 lb, fox 12, eagle 10, gull 4, squirrel 3) and respawns after 45 seconds: deer herds that bolt from bears (charge them), foxes that steal loose salmon (swipe one to make it drop the fish), gulls that scatter from fishing spots, an eagle that swoops down to snatch salmon, and squirrels
 - Clock at 1 real second = 1 game minute, one game day per round (24 minutes), with day and night
 - HUD with weight, clock, leaderboard; end screen with the final weigh-in
 
@@ -58,7 +59,8 @@ src/
   audio.js           synthesized sound effects and music loop
   entities/Bear.js   bear movement, weight, eating, swipe
   systems/Food.js    berry bushes, salmon spawning, salmon runs
-  systems/npcBrain.js NPC bear behaviour
+  systems/npcBrain.js NPC bear behaviour and personalities
+  systems/Animals.js  deer, foxes, gulls, eagle, squirrels
   scenes/GameScene.js map, round clock, day/night, main loop
   scenes/UIScene.js   HUD
   scenes/EndScene.js  final weigh-in and restart

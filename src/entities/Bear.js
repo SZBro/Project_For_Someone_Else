@@ -208,6 +208,7 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
     this.swipeCooldown = SW.cooldownSeconds;
     this.drawClaws();
     this.scene.events.emit('sfx', 'swipe', this);
+    this.scene.events.emit('swipeLanded', this, this.radius + SW.range);
     for (const other of bears) {
       if (other === this || other.dead) continue;
       const dist = Phaser.Math.Distance.Between(this.x, this.y, other.x, other.y);
@@ -252,6 +253,8 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
     this.body.setVelocity(away.x * force, away.y * force);
     this.hp -= damage;
     this.regenTimer = H.regenDelaySeconds;
+    this.lastAttacker = attacker; // NPCs hold grudges
+    this.lastHitAt = this.scene.time.now;
 
     const foodLost = !blocked && this.eatTarget ? this.eatTarget : null;
     if (blocked) {

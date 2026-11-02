@@ -103,11 +103,46 @@ export const CONFIG = {
 
   npc: {
     names: ['Chunk', '747', 'Otis', 'Grazer', 'Holly'],
-    thinkSeconds: 0.3,
-    swipeChance: 0.5, // chance to swipe a nearby rival when contesting food
-    reactChance: 0.55, // chance to block or dash when a swipe or charge is aimed at them
+    thinkSeconds: 0.35, // average; each think is randomized around this
     blockSeconds: 0.6,
-    chargeChance: 0.25, // chance to charge a rival at medium range near their food
+    grudgeSeconds: 10, // how long an NPC holds a grudge against whoever hit it
+    wanderChance: 0.04, // per think, chance to stroll somewhere instead of eating
+    restUntilHealth: 0.75, // retreating bears rest until this much health
+
+    // Each NPC fights differently. All values 0..1 unless noted.
+    //   aggression: how often it swipes/charges rivals near its food
+    //   caution:    retreats when health drops below this fraction
+    //   skill:      chance to react to an incoming attack
+    //   reaction:   [min, max] seconds before it reacts
+    //   mistakes:   chance an attack is wasted (swings at air, bad timing)
+    //   targets:    who it prefers to fight: 'smaller', 'bigger', 'eating' (fish thieves) or 'any'
+    //   favorite:   fishing spot it prefers, if any
+    personalities: {
+      Chunk: { aggression: 0.75, caution: 0.15, skill: 0.5, reaction: [0.1, 0.3], mistakes: 0.15, targets: 'smaller' },
+      747: { aggression: 0.45, caution: 0.2, skill: 0.4, reaction: [0.15, 0.4], mistakes: 0.1, targets: 'any', favorite: 'the falls' },
+      Otis: { aggression: 0.15, caution: 0.45, skill: 0.7, reaction: [0.05, 0.2], mistakes: 0.05, targets: 'any' },
+      Grazer: { aggression: 0.65, caution: 0.25, skill: 0.75, reaction: [0.05, 0.15], mistakes: 0.1, targets: 'bigger' },
+      Holly: { aggression: 0.5, caution: 0.35, skill: 0.55, reaction: [0.1, 0.25], mistakes: 0.2, targets: 'eating' },
+    },
+  },
+
+  // Wildlife: flees from bears, some steal fish, and all of it can be hunted.
+  // hp: damage to bring one down (a swipe does ~22). meat: lbs of food it drops.
+  hunting: {
+    deer: { hp: 40, meat: 45, eatSeconds: 3 },
+    fox: { hp: 20, meat: 12, eatSeconds: 1.5 },
+    squirrel: { hp: 1, meat: 3, eatSeconds: 0.5 },
+    gull: { hp: 1, meat: 4, eatSeconds: 0.6 }, // only while sitting, not flying
+    eagle: { hp: 25, meat: 10, eatSeconds: 1.2 }, // only while swooping low
+    respawnSeconds: 45,
+  },
+
+  animals: {
+    deer: { count: 6, speed: 50, fleeSpeed: 260, fearRadius: 160 }, // faster than a bear: charge them or sneak up
+    foxes: { count: 2, speed: 90, fleeSpeed: 280, fearRadius: 110, stealRadius: 500 },
+    gulls: { count: 12, fearRadius: 120 },
+    eagle: { swoopEverySeconds: [40, 80], speed: 380 },
+    squirrels: { count: 6, speed: 160, fearRadius: 70 },
   },
 
   // Fish stealing: hit a bear while it eats salmon and the fish gets knocked toward you.
