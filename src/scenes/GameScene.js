@@ -43,6 +43,7 @@ export class GameScene extends Phaser.Scene {
     // Controls: aim with the mouse, left click swipe, hold right click block, E charge, Space or Shift dash.
     // No key capture, so typing a name on the start screen still works.
     this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,SHIFT,E,T', false);
+    this.input.keyboard.on('keydown-ESC', this.pauseGame, this);
     this.input.mouse.disableContextMenu();
     this.input.on('pointerdown', (pointer) => {
       if (pointer.leftButtonDown()) this.player.startSwipe();
@@ -80,6 +81,13 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.showMenu();
     }
+  }
+
+  pauseGame() {
+    if (!this.started || this.over) return;
+    this.scene.pause('Game');
+    this.scene.pause('UI');
+    this.scene.launch('Pause');
   }
 
   // Start screen: the river keeps running with NPC bears while the menu card sits on top.

@@ -15,6 +15,12 @@
         z-index: 10;
       }
       #menu[hidden] { display: none; }
+      #pause-menu {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(ellipse at center, rgba(20, 14, 6, 0.15), rgba(20, 14, 6, 0.55));
+        z-index: 20;
+      }
+      #pause-menu[hidden] { display: none; }
       .card {
         width: min(420px, calc(100% - 32px)); padding: 28px 28px 22px; border-radius: 18px;
         background: rgba(250, 238, 214, 0.93); color: #3b2a1a; text-align: center;
@@ -35,6 +41,13 @@
       .card button:active { transform: translateY(2px); box-shadow: 0 2px 0 #8a4a1c; }
       .toggles { display: flex; justify-content: center; gap: 20px; margin-top: 14px; font-size: 15px; }
       .toggles label { cursor: pointer; user-select: none; }
+      .volume-controls { margin: 18px 0 8px; text-align: left; }
+      .volume-control {
+        display: grid; grid-template-columns: 58px 1fr 42px; align-items: center; gap: 10px;
+        margin-top: 10px; font-size: 15px;
+      }
+      .volume-control input { width: 100%; accent-color: #c4621d; }
+      .volume-control output { text-align: right; font-variant-numeric: tabular-nums; }
       .controls { margin-top: 16px; font-size: 13px; line-height: 1.6; color: #6a4e32; }
       .controls b { color: #3b2a1a; }
     </style>
@@ -55,6 +68,26 @@
             <b>WASD</b> move · <b>mouse</b> aim · <b>left click</b> swipe · <b>E</b> charge<br />
             <b>hold right click</b> block · <b>Space/Shift</b> dash · <b>M</b> mute
           </div>
+        </div>
+      </div>
+      <div id="pause-menu" hidden role="dialog" aria-modal="true" aria-labelledby="pause-title">
+        <div class="card">
+          <h1 id="pause-title">Paused</h1>
+          <p class="tag">Take a breather. The bears will wait.</p>
+          <div class="volume-controls">
+            <label class="volume-control" for="sound-volume">
+              <span>Sound</span>
+              <input id="sound-volume" type="range" min="0" max="1" step="0.01" aria-label="Sound effects volume" />
+              <output id="sound-volume-value" for="sound-volume"></output>
+            </label>
+            <label class="volume-control" for="music-volume">
+              <span>Music</span>
+              <input id="music-volume" type="range" min="0" max="1" step="0.01" aria-label="Music volume" />
+              <output id="music-volume-value" for="music-volume"></output>
+            </label>
+          </div>
+          <button id="resume">Resume</button>
+          <div class="controls"><b>Esc</b> or click Resume to continue</div>
         </div>
       </div>
     </div>

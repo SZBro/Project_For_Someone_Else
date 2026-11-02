@@ -13,6 +13,8 @@ class Audio {
     const saved = loadSettings();
     this.soundOn = saved.soundOn ?? true;
     this.musicOn = saved.musicOn ?? true;
+    this.soundVolume = normalizeVolume(saved.soundVolume);
+    this.musicVolume = normalizeVolume(saved.musicVolume);
     this.muted = false;
   }
 
@@ -23,10 +25,8 @@ class Audio {
       this.master = this.ctx.createGain();
       this.master.connect(this.ctx.destination);
       this.sfxBus = this.ctx.createGain();
-      this.sfxBus.gain.value = 0.5;
       this.sfxBus.connect(this.master);
       this.musicBus = this.ctx.createGain();
-      this.musicBus.gain.value = 0.16;
       this.musicBus.connect(this.master);
       this.noise = makeNoiseBuffer(this.ctx);
     }
@@ -41,12 +41,26 @@ class Audio {
     this.applyVolumes();
   }
 
+  setSoundVolume(volume) {
+    this.soundVolume = normalizeVolume(volume);
+    saveSettings(this);
+    this.applyVolumes();
+  }
+
   setMusic(on) {
     this.musicOn = on;
     saveSettings(this);
-    if (!this.ctx) return;
-    if (on) this.startMusic();
-    else this.stopMusic();
+    if (this.ctx) {
+      if (on) this.startMusic();
+      else this.stopMusic();
+    }
+    this.applyVolumes();
+  }
+
+  setMusicVolume(volume) {
+    this.musicVolume = normalizeVolume(volume);
+    saveSettings(this);
+    this.applyVolumes();
   }
 
   toggleMute() {
@@ -58,7 +72,8 @@ class Audio {
   applyVolumes() {
     if (!this.ctx) return;
     this.master.gain.value = this.muted ? 0 : 1;
-    this.sfxBus.gain.value = this.soundOn ? 0.5 : 0;
+    this.sfxBus.gain.value = this.soundOn ? 0.5 * this.soundVolume : 0;
+    this.musicBus.gain.value = this.musicOn ? 0.16 * this.musicVolume : 0;
   }
 
   get ready() {
@@ -255,10 +270,23 @@ function loadSettings() {
 
 function saveSettings(a) {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ soundOn: a.soundOn, musicOn: a.musicOn }));
+    localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({
+        soundOn: a.soundOn,
+        musicOn: a.musicOn,
+        soundVolume: a.soundVolume,
+        musicVolume: a.musicVolume,
+      }),
+    );
   } catch {
     // ignore
   }
+}
+
+function normalizeVolume(value) {
+  const volume = Number(value);
+  return Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1;
 }
 
 export const audio = new Audio();

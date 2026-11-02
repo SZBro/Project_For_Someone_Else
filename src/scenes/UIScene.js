@@ -19,7 +19,7 @@ export class UIScene extends Phaser.Scene {
     this.helpText = this.add.text(
       16,
       0,
-      'WASD: move  ·  mouse: aim  ·  left click: swipe  ·  E: charge  ·  hold right click: block  ·  Space/Shift: dash  ·  M: mute  ·  hold T: fast-forward',
+      'WASD: move  ·  mouse: aim  ·  left click: swipe  ·  E: charge  ·  hold right click: block  ·  Space/Shift: dash  ·  Esc: pause  ·  M: mute  ·  hold T: fast-forward',
       { ...TEXT, fontSize: '13px' },
     );
     this.respawnText = this.add.text(0, 0, '', { ...TEXT, fontSize: '36px' }).setOrigin(0.5);

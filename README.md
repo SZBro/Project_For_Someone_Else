@@ -21,6 +21,8 @@ Then open http://localhost:5173.
 - E: charge. An orange lane shows where you'll lunge. Breaks blocks; dash sideways to dodge one.
 - Hold right click: block swipes from the front (takes a little damage and stamina, no stun)
 - Space or Shift: dash (attacks pass through you mid-dash)
+- Esc: pause or resume during a round
+- Adjust music and sound-effects volume from the pause menu
 - Stand on food to eat it (salmon in the river, berries on the banks)
 - M: mute
 - Hold T: fast-forward the clock (testing only)
@@ -63,5 +65,6 @@ src/
   systems/Animals.js  deer, foxes, gulls, eagle, squirrels
   scenes/GameScene.js map, round clock, day/night, main loop
   scenes/UIScene.js   HUD
-  scenes/EndScene.js  final weigh-in and restart
+  scenes/EndScene.js final weigh-in and restart
+  scenes/PauseScene.js pause overlay and resume
 ```
