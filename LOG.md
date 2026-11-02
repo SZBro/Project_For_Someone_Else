@@ -199,11 +199,18 @@ They also hold grudges against whoever hit them, retreat to rest when hurt, wand
 
 ---
 
+## 2026-11-01: Pause Menu
+
+**Type:** Feature
+
+**What:** Added a new pause menu that includes sliders to adjust the volumes of the music and the sound effects.
+
+**Why:** Gave users more control over their gaming experience.
+
 ## Still open
 
 - Single-player first or online multiplayer?
 - Round length: one 24-minute game day, ~15 minutes, or a full in-game week?
 - Art direction (cozy hand-drawn or paper-cutout) and who makes the art
-- Music volume is too loud and needs turning down; a volume slider would help
 - Whether Fat Bear Week or Katmai names and branding can be used
 - Combat and hunting have had scripted tests but little hands-on playtesting
