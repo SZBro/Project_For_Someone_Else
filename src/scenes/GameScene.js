@@ -6,35 +6,49 @@ import { FoodSystem } from '../systems/Food.js';
 import { updateNpc } from '../systems/npcBrain.js';
 import { AnimalSystem } from '../systems/Animals.js';
 import { audio } from '../audio.js';
+import { net } from '../net/lobby.js';
+import { GuestMirror } from '../net/guestMirror.js';
+import { snapBears, snapFood, snapAnimals } from '../net/snapshot.js';
+import { bindMenuButtons, leaveToMenu, showLobby } from '../net/lobbyUi.js';
 
 const W = CONFIG.world;
 const R = CONFIG.river;
 const NPC_TINTS = [0x8a5a35, 0x6e4a2f, 0x9c6b43, 0x5c3d26, 0xa87850];
+const HUMAN_TINTS = [0xd9a066, 0xe8d5b0, 0xc2703a, 0x9db0c0, 0xc9b458, 0xb08ac0];
 
 export class GameScene extends Phaser.Scene {
   constructor() {
     super('Game');
   }
 
-  // data.started: false shows the start screen over a live river; true starts a round right away.
+  // data.started: false shows the start screen or lobby over a live river; true starts a round.
+  // Online, the host's browser runs the real game (mode 'host') and everyone else
+  // draws what the host reports (mode 'guest'). Offline is mode 'solo'.
   create(data = {}) {
     this.started = !!data.started;
+    this.mode = this.started && net.online ? net.role : 'solo';
     if (!this.textures.exists('bear')) createTextures(this);
     this.physics.world.setBounds(0, 0, W.width, W.height);
     this.drawMap();
 
-    this.food = new FoodSystem(this);
-    this.animals = new AnimalSystem(this, this.food);
+    this.bears = [];
+    this.fxQueue = [];
+    this.guestInputs = new Map();
+    this.pendingActions = {};
+    this.netTimer = 0;
+    this.netTick = 0;
+    this.lastHostMessage = performance.now();
+    this.lastGuestInput = new Map();
 
-    const name = this.registry.get('playerName') || 'You';
-    this.player = new Bear(this, 1200, 420, { name, tint: 0xd9a066, isPlayer: true });
-    this.bears = [this.player];
-    CONFIG.npc.names.forEach((name, i) => {
-      const x = Phaser.Math.Between(200, W.width - 200);
-      const y = i % 2 ? Phaser.Math.Between(150, R.top - 100) : Phaser.Math.Between(R.bottom + 100, W.height - 150);
-      this.bears.push(new Bear(this, x, y, { name, tint: NPC_TINTS[i % NPC_TINTS.length] }));
-    });
-    this.physics.add.collider(this.bears, this.bears);
+    if (this.isGuest) {
+      this.mirror = new GuestMirror(this);
+      this.player = null; // arrives with the first snapshot
+    } else {
+      this.food = new FoodSystem(this);
+      this.animals = new AnimalSystem(this, this.food);
+      this.createBears();
+      this.physics.add.collider(this.bears, this.bears);
+    }
 
     this.cameras.main.setBounds(0, 0, W.width, W.height);
 
@@ -46,12 +60,11 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', this.pauseGame, this);
     this.input.mouse.disableContextMenu();
     this.input.on('pointerdown', (pointer) => {
-      if (pointer.leftButtonDown()) this.player.startSwipe();
+      if (pointer.leftButtonDown()) this.playerAction('swipe');
     });
-    const dash = () => this.player.dash(this.moveDir());
-    this.input.keyboard.on('keydown-SPACE', dash);
-    this.input.keyboard.on('keydown-SHIFT', dash);
-    this.input.keyboard.on('keydown-E', () => this.player.startCharge());
+    this.input.keyboard.on('keydown-SPACE', () => this.playerAction('dash'));
+    this.input.keyboard.on('keydown-SHIFT', () => this.playerAction('dash'));
+    this.input.keyboard.on('keydown-E', () => this.playerAction('charge'));
 
     this.input.keyboard.on('keydown-M', () => {
       if (this.started) this.events.emit('announce', audio.toggleMute() ? 'Muted' : 'Sound on');
@@ -60,31 +73,216 @@ export class GameScene extends Phaser.Scene {
     this.events.on('hit', this.onHit, this);
     this.events.on('guardBreak', ({ victim }) => {
       this.floatText(victim.x, victim.y - victim.radius, 'GUARD BREAK', '#ff7a3c');
-      audio.guardBreak(this.volumeAt(victim));
+      this.playSfx('guardBreak', victim);
     });
     this.events.on('knockout', this.onKnockout, this);
-    this.events.on('sfx', (name, bear) => audio[name](this.volumeAt(bear)));
-    this.events.on('swipeLanded', (bear, reach) => this.animals.onSwipe(bear, reach));
+    this.events.on('sfx', (name, source) => this.playSfx(name, source));
+    this.events.on('swipeLanded', (bear, reach) => {
+      this.animals.onSwipe(bear, reach);
+      this.queueFx({ k: 'claw', id: bear.netId });
+    });
+    this.events.on('flash', (bear, color) => this.queueFx({ k: 'flash', id: bear.netId, c: color }));
     // Scene events outlive a restart, so drop these listeners when the round ends.
     this.events.once('shutdown', () =>
-      ['hit', 'guardBreak', 'knockout', 'sfx', 'swipeLanded'].forEach((e) => this.events.off(e)),
+      ['hit', 'guardBreak', 'knockout', 'sfx', 'swipeLanded', 'flash'].forEach((e) => this.events.off(e)),
     );
 
     this.hitStop = 0;
     this.gameMinutes = 0;
     this.roundMinutes = CONFIG.time.roundGameDays * 24 * 60;
+    // Online rounds have a chosen length; the clock runs faster so a full day still fits.
+    this.clockRate = this.mode === 'solo' ? CONFIG.time.gameMinutesPerSecond : this.roundMinutes / (net.roundMinutes * 60);
     this.over = false;
 
     if (this.started) {
-      this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+      if (this.player) this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
       this.scene.launch('UI');
     } else {
       this.showMenu();
     }
   }
 
+  get isHost() {
+    return this.mode === 'host';
+  }
+
+  get isGuest() {
+    return this.mode === 'guest';
+  }
+
+  createBears() {
+    const humans = this.isHost ? net.players : [{ id: 'local', name: this.registry.get('playerName') || 'You' }];
+    humans.forEach((p, i) => {
+      const isPlayer = i === 0; // online, the host is always first in the list
+      const at = isPlayer ? { x: 1200, y: 420 } : this.bears.length ? this.spawnPoint() : { x: 1200, y: 420 };
+      const bear = new Bear(this, at.x, at.y, { name: p.name, tint: HUMAN_TINTS[i % HUMAN_TINTS.length], isPlayer });
+      bear.netId = p.id;
+      bear.remote = !isPlayer;
+      if (isPlayer) this.player = bear;
+      this.bears.push(bear);
+    });
+
+    const npcCount = this.isHost ? Math.max(0, CONFIG.online.bearsInRound - humans.length) : CONFIG.npc.names.length;
+    CONFIG.npc.names.slice(0, npcCount).forEach((name, i) => {
+      const x = Phaser.Math.Between(200, W.width - 200);
+      const y = i % 2 ? Phaser.Math.Between(150, R.top - 100) : Phaser.Math.Between(R.bottom + 100, W.height - 150);
+      const bear = new Bear(this, x, y, { name, tint: NPC_TINTS[i % NPC_TINTS.length] });
+      bear.netId = `npc-${i}`;
+      this.bears.push(bear);
+    });
+  }
+
+  playerAction(action) {
+    if (this.isGuest) {
+      this.pendingActions[action] = true;
+    } else if (this.player) {
+      this.runAction(this.player, action, this.moveDir());
+    }
+  }
+
+  runAction(bear, action, dir) {
+    if (action === 'swipe') bear.startSwipe();
+    else if (action === 'charge') bear.startCharge();
+    else if (action === 'dash') bear.dash(dir);
+  }
+
+  // ---- online: host side ----
+
+  onPlayerJoined(player) {
+    if (!this.isHost || this.over) return;
+    const at = this.spawnPoint();
+    const tint = HUMAN_TINTS[this.bears.filter((b) => b.remote || b.isPlayer).length % HUMAN_TINTS.length];
+    const bear = new Bear(this, at.x, at.y, { name: player.name, tint });
+    bear.netId = player.id;
+    bear.remote = true;
+    this.bears.push(bear);
+    this.lastGuestInput.set(player.id, performance.now());
+    net.sendTo(player.id, { t: 'start' });
+    this.announce(`${player.name} joined!`);
+  }
+
+  // A friend who drops out mid-round leaves their bear behind as an NPC.
+  onPlayerLeft(player) {
+    if (!this.isHost || !player) return;
+    const bear = this.bears.find((b) => b.netId === player.id);
+    if (bear) bear.remote = false;
+    this.guestInputs.delete(player.id);
+    this.announce(`${player.name} left. An NPC took over their bear.`);
+  }
+
+  onGuestInput(id, msg) {
+    this.lastGuestInput.set(id, performance.now());
+    const old = this.guestInputs.get(id);
+    // One-shot actions stay set until the game loop has used them.
+    this.guestInputs.set(id, {
+      ...msg,
+      swipe: msg.swipe || old?.swipe,
+      charge: msg.charge || old?.charge,
+      dash: msg.dash || old?.dash,
+    });
+  }
+
+  applyGuestInput(bear) {
+    const input = this.guestInputs.get(bear.netId);
+    if (!input || bear.dead) return;
+    const dir = new Phaser.Math.Vector2(input.mx, input.my);
+    bear.move(dir);
+    bear.aim(input.ax - bear.x, input.ay - bear.y);
+    bear.setBlocking(!!input.block);
+    ['swipe', 'charge', 'dash'].forEach((action) => {
+      if (input[action]) {
+        this.runAction(bear, action, dir);
+        input[action] = false;
+      }
+    });
+    this.autoEat(bear);
+  }
+
+  // Effects guests should see too, optionally for just one of them (fx.to).
+  queueFx(fx) {
+    if (this.isHost) this.fxQueue.push(fx);
+  }
+
+  sendSnapshots(dt) {
+    this.netTimer += dt;
+    if (this.netTimer < 1 / CONFIG.online.snapshotsPerSecond) return;
+    this.netTimer = 0;
+    const snap = { t: 'snap', gm: Math.round(this.gameMinutes * 10) / 10, b: snapBears(this.bears) };
+    if (this.netTick % 2 === 0) snap.an = snapAnimals(this.animals);
+    if (this.netTick % 4 === 0) {
+      snap.fd = snapFood(this.food);
+      snap.ws = this.food.waveSpot ? this.food.spots.indexOf(this.food.waveSpot) : -1;
+    }
+    this.netTick++;
+    const now = performance.now();
+    net.conns.forEach((conn, id) => {
+      if (!this.lastGuestInput.has(id)) this.lastGuestInput.set(id, now);
+      if (now - this.lastGuestInput.get(id) > CONFIG.online.guestTimeoutSeconds * 1000) {
+        conn.close();
+        net.removeGuest(id);
+        return;
+      }
+      net.sendTo(id, { ...snap, fx: this.fxQueue.filter((fx) => !fx.to || fx.to === id) });
+    });
+    this.fxQueue = [];
+  }
+
+  // ---- online: guest side ----
+
+  onSnapshot(snap) {
+    if (!this.isGuest || this.over) return;
+    this.lastHostMessage = performance.now();
+    this.mirror.apply(snap);
+  }
+
+  updateGuest(dt) {
+    const dir = document.hidden ? new Phaser.Math.Vector2() : this.moveDir();
+    const pointer = this.input.activePointer;
+    pointer.updateWorldPoint(this.cameras.main);
+    this.player?.aim(pointer.worldX - this.player.x, pointer.worldY - this.player.y);
+    this.mirror.update(dt, dir);
+
+    this.netTimer += dt;
+    if (this.netTimer >= 1 / CONFIG.online.inputsPerSecond) {
+      this.netTimer = 0;
+      net.send({
+        t: 'input',
+        mx: dir.x,
+        my: dir.y,
+        ax: Math.round(pointer.worldX),
+        ay: Math.round(pointer.worldY),
+        block: !document.hidden && pointer.rightButtonDown(),
+        ...this.pendingActions,
+      });
+      this.pendingActions = {};
+    }
+
+    this.updateNight();
+    if (performance.now() - this.lastHostMessage > CONFIG.online.hostTimeoutSeconds * 1000) {
+      leaveToMenu(this.game, 'Lost connection to the host.');
+    }
+  }
+
+  // The round is over on the host; show this guest the weigh-in.
+  showResults(results) {
+    this.over = true;
+    this.scene.stop('UI');
+    this.scene.stop('Pause');
+    this.scene.launch('End', { results: results.map((r) => ({ ...r, isPlayer: r.id === net.id })) });
+  }
+
+  announce(message) {
+    this.events.emit('announce', message);
+    this.queueFx({ k: 'ann', s: message });
+  }
+
   pauseGame() {
     if (!this.started || this.over) return;
+    // An online round can't stop for one player, so Esc only opens the settings.
+    if (this.mode !== 'solo') {
+      if (!this.scene.isActive('Pause')) this.scene.launch('Pause', { online: true });
+      return;
+    }
     this.scene.pause('Game');
     this.scene.pause('UI');
     this.scene.launch('Pause');
@@ -101,7 +299,17 @@ export class GameScene extends Phaser.Scene {
     p.body.enable = false;
     this.cameras.main.centerOn(W.width / 2, (R.top + R.bottom) / 2);
 
+    if (net.online) {
+      showLobby();
+      return;
+    }
+
     const menu = document.getElementById('menu');
+    bindMenuButtons(() => {
+      const name = document.getElementById('name').value.trim() || 'Bear';
+      this.registry.set('playerName', name);
+      return name;
+    });
     const nameInput = document.getElementById('name');
     const sound = document.getElementById('sound');
     const music = document.getElementById('music');
@@ -218,35 +426,51 @@ export class GameScene extends Phaser.Scene {
     const playerInvolved = attacker.isPlayer || victim.isPlayer;
     if (foodLost) this.food.knockLoose(foodLost, attacker);
 
-    const vol = this.volumeAt(victim);
     if (blocked) {
       this.burst(victim.x, victim.y, 0x7fc8ff, 5);
-      audio.block(vol);
+      this.playSfx('block', victim);
     } else {
       this.burst(victim.x, victim.y, 0x6b4a2f, kind === 'charge' ? 14 : 9);
-      if (playerInvolved) this.hitStop = CONFIG.feel.hitStopMs * (kind === 'charge' ? 1.6 : 1);
-      if (kind === 'charge') audio.heavyHit(vol);
-      else audio.hit(vol);
+      // Hit-stop freezes the whole game, so it's solo only: online it would stall everyone.
+      if (playerInvolved && this.mode === 'solo') this.hitStop = CONFIG.feel.hitStopMs * (kind === 'charge' ? 1.6 : 1);
+      this.playSfx(kind === 'charge' ? 'heavyHit' : 'hit', victim);
     }
     if (guardBreak) {
       this.floatText(victim.x, victim.y - victim.radius - 20, 'GUARD BREAK', '#ff7a3c');
-      audio.guardBreak(vol);
+      this.playSfx('guardBreak', victim);
     }
     this.floatText(victim.x, victim.y - victim.radius, `-${Math.round(damage)}`, blocked ? '#7fc8ff' : '#ff5a4a');
 
-    if (victim.isPlayer) this.cameras.main.shake(blocked ? 60 : kind === 'charge' ? 220 : 140, blocked ? 0.002 : 0.007);
-    else if (attacker.isPlayer && !blocked) this.cameras.main.shake(70, 0.003);
+    this.shakeFor(victim, blocked ? 60 : kind === 'charge' ? 220 : 140, blocked ? 0.002 : 0.007);
+    if (!blocked) this.shakeFor(attacker, 70, 0.003);
+  }
+
+  // Shakes the screen of whoever is playing this bear.
+  shakeFor(bear, duration, intensity) {
+    if (bear.isPlayer) this.cameras.main.shake(duration, intensity);
+    else if (bear.remote) this.queueFx({ k: 'shake', d: duration, i: intensity, to: bear.netId });
+  }
+
+  playSfx(name, source) {
+    audio[name](this.volumeAt(source));
+    this.queueFx({ k: 'sfx', n: name, x: Math.round(source.x), y: Math.round(source.y) });
   }
 
   onKnockout({ victim, killer }) {
-    const who = (b) => (b.isPlayer ? 'You' : b.name);
-    this.events.emit('announce', `${who(killer)} knocked out ${victim.isPlayer ? 'you' : victim.name}!`);
+    const solo = this.mode === 'solo'; // online there's more than one "you", so use names
+    const who = (b) => (solo && b.isPlayer ? 'You' : b.name);
+    this.announce(`${who(killer)} knocked out ${solo && victim.isPlayer ? 'you' : victim.name}!`);
     this.food.dropSalmon(victim.x, victim.y, CONFIG.loot.salmonDroppedOnKnockout);
     this.burst(victim.x, victim.y, 0x6b4a2f, 20);
-    audio.knockout(this.volumeAt(victim));
+    this.playSfx('knockout', victim);
   }
 
   floatText(x, y, text, color) {
+    this.drawFloat(x, y, text, color);
+    this.queueFx({ k: 'text', x: Math.round(x), y: Math.round(y), s: text, c: color });
+  }
+
+  drawFloat(x, y, text, color) {
     if (!CONFIG.feel.damageNumbers) return;
     const t = this.add
       .text(x + Phaser.Math.Between(-8, 8), y, text, {
@@ -264,6 +488,11 @@ export class GameScene extends Phaser.Scene {
 
   // Little puffs of fur (or shield sparks) flying out from a hit.
   burst(x, y, color, count) {
+    this.drawBurst(x, y, color, count);
+    this.queueFx({ k: 'burst', x: Math.round(x), y: Math.round(y), c: color, n: count });
+  }
+
+  drawBurst(x, y, color, count) {
     for (let i = 0; i < count; i++) {
       const dot = this.add.circle(x, y, Phaser.Math.Between(2, 5), color).setDepth(30);
       const p = Phaser.Math.RandomXY(new Phaser.Math.Vector2(), Phaser.Math.Between(20, 50));
@@ -292,11 +521,16 @@ export class GameScene extends Phaser.Scene {
     const dt = deltaMs / 1000;
     this.ripples.tilePositionX -= 40 * dt; // river flows left to right
 
+    if (this.isGuest) {
+      this.updateGuest(dt);
+      return;
+    }
+
     // On the start screen the clock is frozen and the camera drifts along the river.
     let gameMinutesThisFrame = 0;
     if (this.started) {
-      const timeScale = this.keys.T.isDown ? CONFIG.time.fastForward : 1;
-      gameMinutesThisFrame = dt * CONFIG.time.gameMinutesPerSecond * timeScale;
+      const timeScale = this.mode === 'solo' && this.keys.T.isDown ? CONFIG.time.fastForward : 1;
+      gameMinutesThisFrame = dt * this.clockRate * timeScale;
       this.gameMinutes += gameMinutesThisFrame;
       this.handlePlayerInput();
     } else {
@@ -312,15 +546,20 @@ export class GameScene extends Phaser.Scene {
           b.respawn(p.x, p.y);
         }
       } else {
-        if (b !== this.player) updateNpc(b, dt, { food: this.food, bears: this.bears });
+        if (b.remote) this.applyGuestInput(b);
+        else if (b !== this.player) updateNpc(b, dt, { food: this.food, bears: this.bears });
         b.addWeight((-CONFIG.bear.weightLossPerGameHour * gameMinutesThisFrame) / 60);
       }
       const eaten = b.tick(dt, this.bears);
       if (eaten) {
         b.addWeight(eaten.getData('weight'));
+        const gain = `+${eaten.getData('weight')} lb`;
         if (b.isPlayer) {
-          this.floatText(b.x, b.y - b.radius, `+${eaten.getData('weight')} lb`, '#ffd34d');
+          this.drawFloat(b.x, b.y - b.radius, gain, '#ffd34d');
           audio.eat();
+        } else if (b.remote) {
+          this.queueFx({ k: 'text', x: Math.round(b.x), y: Math.round(b.y - b.radius), s: gain, c: '#ffd34d', to: b.netId });
+          this.queueFx({ k: 'sfx', n: 'eat', x: Math.round(b.x), y: Math.round(b.y), to: b.netId });
         }
         this.food.consume(eaten);
       }
@@ -330,10 +569,11 @@ export class GameScene extends Phaser.Scene {
     this.bears.forEach((b) => b.isCharging && this.animals.onCharge(b));
     const announcement = this.food.update(dt);
     if (announcement && this.started) {
-      this.events.emit('announce', announcement);
-      audio.splash();
+      this.announce(announcement);
+      this.playSfx('splash', this.cameras.main.midPoint);
     }
 
+    if (this.isHost) this.sendSnapshots(dt);
     this.updateNight();
     if (this.started && this.gameMinutes >= this.roundMinutes) this.endRound();
   }
@@ -376,10 +616,14 @@ export class GameScene extends Phaser.Scene {
     player.aim(pointer.worldX - player.x, pointer.worldY - player.y);
     player.setBlocking(pointer.rightButtonDown());
 
-    // Eat automatically: whatever food is in reach.
-    if (!player.eatTarget && player.canEat) {
-      const food = this.food.nearestAvailable(player.x, player.y, player.radius + CONFIG.food.eatRange);
-      if (food) player.startEating(food);
+    this.autoEat(player);
+  }
+
+  // Eat automatically: whatever food is in reach.
+  autoEat(bear) {
+    if (!bear.eatTarget && bear.canEat) {
+      const food = this.food.nearestAvailable(bear.x, bear.y, bear.radius + CONFIG.food.eatRange);
+      if (food) bear.startEating(food);
     }
   }
 
@@ -397,8 +641,14 @@ export class GameScene extends Phaser.Scene {
     this.physics.pause();
     const results = [...this.bears]
       .sort((a, b) => b.weight - a.weight)
-      .map((b) => ({ name: b.name, weight: Math.round(b.weight), isPlayer: b.isPlayer }));
+      .map((b) => ({ id: b.netId, name: b.name, weight: Math.round(b.weight), isPlayer: b.isPlayer }));
     if (results[0].isPlayer) audio.fanfare();
+    if (this.isHost) {
+      net.inGame = false;
+      net.sendLobby();
+      net.broadcast({ t: 'end', results });
+    }
+    this.scene.stop('Pause');
     this.scene.stop('UI');
     this.scene.launch('End', { results });
   }

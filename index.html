@@ -21,6 +21,24 @@
         z-index: 20;
       }
       #pause-menu[hidden] { display: none; }
+      #lobby {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(ellipse at center, rgba(20, 14, 6, 0.15), rgba(20, 14, 6, 0.55));
+        z-index: 10;
+      }
+      #lobby[hidden] { display: none; }
+      .card button[hidden] { display: none; }
+      .card button:disabled { opacity: 0.6; cursor: default; }
+      .card button.secondary { background: #8a6a45; box-shadow: 0 4px 0 #5e4629; font-size: 18px; padding: 10px; }
+      .card button.secondary:hover { background: #9c7a52; }
+      .join-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+      .join-row input[type='text'] { text-transform: uppercase; letter-spacing: 4px; }
+      .error { min-height: 20px; margin: 10px 0 0; font-size: 14px; color: #a3321c; }
+      .lobby-code { margin: 6px 0 2px; font-size: 44px; font-weight: bold; letter-spacing: 8px; color: #c4621d; }
+      #lobby-players { margin: 14px 0; padding: 0; list-style: none; font-size: 17px; text-align: left; }
+      #lobby-players li { padding: 6px 10px; margin-top: 4px; border-radius: 8px; background: rgba(184, 117, 47, 0.14); }
+      .round-setting { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 15px; }
+      .round-setting select { padding: 6px; border-radius: 8px; border: 2px solid #c99a62; background: #fffaf0; color: #3b2a1a; }
       .card {
         width: min(420px, calc(100% - 32px)); padding: 28px 28px 22px; border-radius: 18px;
         background: rgba(250, 238, 214, 0.93); color: #3b2a1a; text-align: center;
@@ -59,7 +77,13 @@
           <h1>Fat Bear or Weak</h1>
           <p class="tag">Fight for the best fishing spot. Be the heaviest bear by nightfall.</p>
           <input id="name" type="text" maxlength="14" placeholder="Your bear's name" autocomplete="off" />
-          <button id="play">Play</button>
+          <button id="play">Play solo</button>
+          <button id="host" class="secondary">Host a lobby</button>
+          <div class="join-row">
+            <input id="join-code" type="text" maxlength="4" placeholder="Code" autocomplete="off" aria-label="Lobby code" />
+            <button id="join" class="secondary">Join</button>
+          </div>
+          <p id="menu-error" class="error" role="alert"></p>
           <div class="toggles">
             <label><input id="sound" type="checkbox" checked /> Sound</label>
             <label><input id="music" type="checkbox" checked /> Music</label>
@@ -70,10 +94,26 @@
           </div>
         </div>
       </div>
+      <div id="lobby" hidden>
+        <div class="card">
+          <h1>Lobby</h1>
+          <p class="tag">Share this code or link with your friends</p>
+          <div id="lobby-code" class="lobby-code"></div>
+          <button id="copy-link" class="secondary">Copy invite link</button>
+          <ul id="lobby-players"></ul>
+          <label class="round-setting">
+            <span>Round length</span>
+            <select id="round-minutes"></select>
+          </label>
+          <button id="start-round">Start round</button>
+          <button id="leave-lobby" class="secondary">Leave</button>
+          <p id="lobby-status" class="controls"></p>
+        </div>
+      </div>
       <div id="pause-menu" hidden role="dialog" aria-modal="true" aria-labelledby="pause-title">
         <div class="card">
           <h1 id="pause-title">Paused</h1>
-          <p class="tag">Take a breather. The bears will wait.</p>
+          <p id="pause-tag" class="tag">Take a breather. The bears will wait.</p>
           <div class="volume-controls">
             <label class="volume-control" for="sound-volume">
               <span>Sound</span>
@@ -87,6 +127,7 @@
             </label>
           </div>
           <button id="resume">Resume</button>
+          <button id="leave-game" class="secondary" hidden>Leave game</button>
           <div class="controls"><b>Esc</b> or click Resume to continue</div>
         </div>
       </div>

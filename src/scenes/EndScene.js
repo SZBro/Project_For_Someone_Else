@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { net } from '../net/lobby.js';
+import { leaveToMenu, returnToLobby } from '../net/lobbyUi.js';
 
 const TEXT = { fontFamily: 'sans-serif', color: '#ffffff', stroke: '#000000', strokeThickness: 4 };
 
@@ -24,6 +26,11 @@ export class EndScene extends Phaser.Scene {
     const lines = results.map((r, i) => `${i + 1}.  ${r.name}${r.isPlayer ? ' (you)' : ''}  ${r.weight} lb`).join('\n');
     this.add.text(width / 2, height * 0.3, lines, { ...TEXT, fontSize: '24px', align: 'center' }).setOrigin(0.5, 0);
 
+    if (net.online) {
+      this.createOnlineControls(width, height);
+      return;
+    }
+
     this.add
       .text(width / 2, height * 0.8, 'Enter or click: play again   ·   Esc: back to menu', { ...TEXT, fontSize: '22px' })
       .setOrigin(0.5);
@@ -31,5 +38,20 @@ export class EndScene extends Phaser.Scene {
     this.input.keyboard.once('keydown-ENTER', () => this.scene.start('Game', { started: true }));
     this.input.once('pointerdown', () => this.scene.start('Game', { started: true }));
     this.input.keyboard.once('keydown-ESC', () => this.scene.start('Game', { started: false }));
+  }
+
+  createOnlineControls(width, height) {
+    const isHost = net.role === 'host';
+    const text = isHost ? 'Enter or click: back to the lobby   ·   Esc: leave' : 'Waiting for the host…   ·   Esc: leave';
+    this.add.text(width / 2, height * 0.8, text, { ...TEXT, fontSize: '22px' }).setOrigin(0.5);
+
+    this.input.keyboard.once('keydown-ESC', () => leaveToMenu(this.game));
+    if (!isHost) return;
+    const back = () => {
+      net.broadcast({ t: 'back' });
+      returnToLobby(this.game);
+    };
+    this.input.keyboard.once('keydown-ENTER', back);
+    this.input.once('pointerdown', back);
   }
 }

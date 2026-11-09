@@ -16,10 +16,11 @@ export class UIScene extends Phaser.Scene {
     this.clockText = this.add.text(16, 48, '', TEXT);
     this.healthBar = this.add.graphics();
     this.actionText = this.add.text(16, 106, '', TEXT);
+    const solo = this.gameScene.mode === 'solo';
     this.helpText = this.add.text(
       16,
       0,
-      'WASD: move  ·  mouse: aim  ·  left click: swipe  ·  E: charge  ·  hold right click: block  ·  Space/Shift: dash  ·  Esc: pause  ·  M: mute  ·  hold T: fast-forward',
+      `WASD: move  ·  mouse: aim  ·  left click: swipe  ·  E: charge  ·  hold right click: block  ·  Space/Shift: dash  ·  Esc: ${solo ? 'pause' : 'menu'}  ·  M: mute${solo ? '  ·  hold T: fast-forward' : ''}`,
       { ...TEXT, fontSize: '13px' },
     );
     this.respawnText = this.add.text(0, 0, '', { ...TEXT, fontSize: '36px' }).setOrigin(0.5);
@@ -44,7 +45,7 @@ export class UIScene extends Phaser.Scene {
     this.weightText.setText(`${Math.round(g.player.weight)} lb`);
     const c = g.clock;
     const time = `${String(c.hour).padStart(2, '0')}:${String(c.minute).padStart(2, '0')}`;
-    const left = Math.max(0, c.minutesLeft / CONFIG.time.gameMinutesPerSecond);
+    const left = Math.max(0, c.minutesLeft / g.clockRate);
     const mm = Math.floor(left / 60);
     const ss = String(Math.floor(left % 60)).padStart(2, '0');
     this.clockText.setText(`Day ${c.day}  ${time}   ·   ${mm}:${ss} left`);

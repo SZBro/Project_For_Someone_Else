@@ -13,6 +13,20 @@ npm run dev
 
 Then open http://localhost:5173.
 
+## Play with friends
+
+1. Enter a name and press **Host a lobby**. You get a 4-letter code and an invite link to share.
+2. Friends open the link, or enter the code and press **Join**. Up to 6 players, and NPC bears fill empty spots.
+3. The host picks a round length (5, 15 or 24 minutes) and presses **Start round**.
+
+The host's browser runs the game, so there is no game server to pay for. If the host leaves, the round ends. Friends can join a round in progress, and a friend who drops out leaves their bear behind as an NPC. Online, Esc opens the settings instead of pausing.
+
+Browsers connect directly with WebRTC through [PeerJS](https://peerjs.com/). PeerJS's free public server only introduces them using the lobby code. Some strict networks block direct connections, and those players won't be able to join.
+
+## Publish the site
+
+`.github/workflows/deploy.yml` builds and publishes the game to GitHub Pages on every push to `main`. It needs Pages turned on once: repo **Settings → Pages → Source: GitHub Actions**.
+
 ## Controls
 
 - WASD or arrow keys: move
@@ -67,4 +81,9 @@ src/
   scenes/UIScene.js   HUD
   scenes/EndScene.js final weigh-in and restart
   scenes/PauseScene.js pause overlay and resume
+  net/lobby.js        connections, lobby codes, messages (PeerJS)
+  net/lobbyUi.js      host/join buttons, lobby card, moving between lobby and round
+  net/snapshot.js     game state the host sends guests
+  net/guestMirror.js  draws the host's game on a guest's screen
+  net/backgroundTicker.js keeps the game running when an online player's tab is hidden
 ```
