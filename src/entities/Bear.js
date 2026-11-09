@@ -37,6 +37,8 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
     this.dashTimer = 0;
     this.dashCooldown = 0;
     this.blocking = false;
+    this.parryTimer = 0; // > 0 just after raising a guard: a swipe landing now gets parried
+    this.parryCooldown = 0;
     this.regenTimer = 0;
     this.dead = false;
     this.respawnTimer = 0;
@@ -193,6 +195,10 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
 
   setBlocking(on) {
     if (on && (!this.canAct || this.isWindingUp || this.isChargingUp || this.stamina <= 0)) on = false;
+    if (on && !this.blocking && this.parryCooldown <= 0) {
+      this.parryTimer = BL.parrySeconds;
+      this.parryCooldown = BL.parryCooldownSeconds;
+    }
     this.blocking = on;
     if (on) this.stopEating();
   }
@@ -206,16 +212,26 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
   // Swipe wind-up finished: hit every bear in the cone in front.
   landSwipe(bears) {
     this.swipeCooldown = SW.cooldownSeconds;
+    this.swipeConnected = false;
     this.drawClaws();
     this.scene.events.emit('sfx', 'swipe', this);
-    this.scene.events.emit('swipeLanded', this, this.radius + SW.range);
+    this.scene.events.emit('swipeLanded', this, this.radius + SW.range); // can set swipeConnected
     for (const other of bears) {
       if (other === this || other.dead) continue;
       const dist = Phaser.Math.Distance.Between(this.x, this.y, other.x, other.y);
       if (dist > this.radius + other.radius + SW.range) continue;
       if (!this.inFrontCone(other.x, other.y, SW.arcDegrees)) continue;
-      other.takeHit(this, 'swipe');
+      if (other.takeHit(this, 'swipe')) this.swipeConnected = true;
     }
+    if (!this.swipeConnected) this.missSwipe();
+  }
+
+  // Whiffing leaves you open, so timing matters more than swinging constantly.
+  missSwipe() {
+    this.swipeCooldown = SW.missCooldownSeconds;
+    this.stamina = Math.max(0, this.stamina - SW.missStaminaCost);
+    this.staminaDelay = ST.regenDelaySeconds;
+    this.scene.events.emit('swipeMissed', this);
   }
 
   // While lunging, the first bear we touch takes the charge and the lunge ends.
@@ -232,11 +248,16 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  // Returns whether the attack connected (a dash dodges it).
   takeHit(attacker, kind) {
-    if (this.dead || (this.isDashing && DA.invulnerable)) return;
+    if (this.dead || (this.isDashing && DA.invulnerable)) return false;
 
     const move = kind === 'charge' ? CH : SW;
     const facingAttacker = this.inFrontCone(attacker.x, attacker.y, BL.arcDegrees);
+    if (this.blocking && facingAttacker && kind === 'swipe' && this.parryTimer > 0) {
+      this.parry(attacker);
+      return true;
+    }
     let blocked = this.blocking && facingAttacker && kind === 'swipe';
     let guardBreak = this.blocking && facingAttacker && kind === 'charge';
     if (blocked && !this.spendStamina(ST.blockHitCost)) {
@@ -270,6 +291,27 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
 
     this.scene.events.emit('hit', { attacker, victim: this, damage, blocked, guardBreak, kind, foodLost });
     if (this.hp <= 0) this.die(attacker);
+    return true;
+  }
+
+  parry(attacker) {
+    this.parryTimer = 0;
+    this.lastAttacker = attacker; // NPCs hold grudges
+    this.lastHitAt = this.scene.time.now;
+    attacker.stagger(this);
+    this.scene.events.emit('parry', { defender: this, attacker });
+  }
+
+  // Parried: knocked back and open to attack, with anything in progress cancelled.
+  stagger(from) {
+    const away = new Phaser.Math.Vector2(this.x - from.x, this.y - from.y).normalize();
+    this.body.setVelocity(away.x * BL.parryKnockback, away.y * BL.parryKnockback);
+    this.stunTimer = BL.parryStaggerSeconds;
+    this.windupTimer = 0;
+    this.chargeWindupTimer = 0;
+    this.blocking = false;
+    this.stopEating();
+    this.flash(0xffd34d);
   }
 
   guardBreak() {
@@ -289,8 +331,12 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
     this.dead = true;
     this.hp = 0;
     this.respawnTimer = H.respawnSeconds;
+    const before = this.weight;
     this.weight = Math.max(B.minWeight, this.weight * (1 - H.deathWeightPenalty));
     this.applyWeight();
+    // Winning a fight pays: the victor takes a share of what was lost.
+    const gain = killer.dead ? 0 : (before - this.weight) * H.knockoutWeightShare;
+    killer.addWeight(gain);
     this.windupTimer = 0;
     this.chargeWindupTimer = 0;
     this.chargeTimer = 0;
@@ -299,7 +345,7 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
     this.body.setVelocity(0, 0);
     this.body.enable = false;
     this.setAlpha(0.25);
-    this.scene.events.emit('knockout', { victim: this, killer });
+    this.scene.events.emit('knockout', { victim: this, killer, gain });
   }
 
   respawn(x, y) {
@@ -324,6 +370,8 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
     this.swipeCooldown = Math.max(0, this.swipeCooldown - dt);
     this.dashCooldown = Math.max(0, this.dashCooldown - dt);
     this.chargeCooldown = Math.max(0, this.chargeCooldown - dt);
+    this.parryTimer = Math.max(0, this.parryTimer - dt);
+    this.parryCooldown = Math.max(0, this.parryCooldown - dt);
     if (this.stunTimer > 0) {
       this.stunTimer -= dt;
       this.body.velocity.scale(0.9);
@@ -464,7 +512,9 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
     // Block shield: a blue arc in front.
     if (this.blocking) {
       const half = (BL.arcDegrees * DEG) / 2;
-      this.fx.lineStyle(6, 0x7fc8ff, 0.4 + 0.5 * (this.stamina / ST.max));
+      // Bright white while a parry would still work.
+      if (this.parryTimer > 0) this.fx.lineStyle(8, 0xffffff, 1);
+      else this.fx.lineStyle(6, 0x7fc8ff, 0.4 + 0.5 * (this.stamina / ST.max));
       this.fx.beginPath();
       this.fx.arc(x, y, r + 10, a - half, a + half);
       this.fx.strokePath();

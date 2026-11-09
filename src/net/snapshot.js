@@ -1,5 +1,5 @@
 // What the host sends guests. Numbers are rounded to keep messages small.
-const FLAGS = { dead: 1, blocking: 2, dashing: 4, charging: 8, stunned: 16 };
+const FLAGS = { dead: 1, blocking: 2, dashing: 4, charging: 8, stunned: 16, parrying: 32 };
 
 export function bearFlags(b) {
   return (
@@ -7,7 +7,8 @@ export function bearFlags(b) {
     (b.blocking ? FLAGS.blocking : 0) |
     (b.isDashing ? FLAGS.dashing : 0) |
     (b.isCharging ? FLAGS.charging : 0) |
-    (b.isStunned ? FLAGS.stunned : 0)
+    (b.isStunned ? FLAGS.stunned : 0) |
+    (b.parryTimer > 0 ? FLAGS.parrying : 0)
   );
 }
 
@@ -18,6 +19,7 @@ export function readFlags(f) {
     dashing: !!(f & FLAGS.dashing),
     charging: !!(f & FLAGS.charging),
     stunned: !!(f & FLAGS.stunned),
+    parrying: !!(f & FLAGS.parrying),
   };
 }
 

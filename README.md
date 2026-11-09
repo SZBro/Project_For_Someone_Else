@@ -34,6 +34,7 @@ Browsers connect directly with WebRTC through [PeerJS](https://peerjs.com/). Pee
 - Left click: swipe. A red cone shows the wind-up before it lands, so the target can react.
 - E: charge. An orange lane shows where you'll lunge. Breaks blocks; dash sideways to dodge one.
 - Hold right click: block swipes from the front (takes a little damage and stamina, no stun)
+- Parry: raise your block just before a swipe lands (the shield flashes white while it works). No damage, and the attacker is staggered. One attempt every 0.8 seconds, so mashing won't work.
 - Space or Shift: dash (attacks pass through you mid-dash)
 - Esc: pause or resume during a round
 - Adjust music and sound-effects volume from the pause menu
@@ -45,7 +46,9 @@ The start screen sits over a live river with the NPC bears. Enter a name and pre
 
 Swipe, charge, dash and blocking all use stamina (the blue bar). Run out while blocking and your guard breaks.
 
-Bears have health. At zero you're knocked out, lose 10% of your weight, drop 2 salmon, and respawn on a bank after 3 seconds.
+A swipe that hits nothing takes longer to recover from and costs extra stamina.
+
+Bears have health. At zero you're knocked out, lose 10% of your weight, drop 2 salmon, and respawn on a bank after 3 seconds. The bear who knocked you out gains half of the weight you lost.
 
 Fish stealing: hit a bear while it's eating salmon and the fish gets knocked toward you, loose and quick to eat.
 

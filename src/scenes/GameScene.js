@@ -78,13 +78,18 @@ export class GameScene extends Phaser.Scene {
     this.events.on('knockout', this.onKnockout, this);
     this.events.on('sfx', (name, source) => this.playSfx(name, source));
     this.events.on('swipeLanded', (bear, reach) => {
-      this.animals.onSwipe(bear, reach);
+      if (this.animals.onSwipe(bear, reach)) bear.swipeConnected = true;
       this.queueFx({ k: 'claw', id: bear.netId });
     });
     this.events.on('flash', (bear, color) => this.queueFx({ k: 'flash', id: bear.netId, c: color }));
+    this.events.on('parry', this.onParry, this);
+    this.events.on('swipeMissed', (bear) => {
+      const reach = bear.radius + CONFIG.swipe.range;
+      this.floatText(bear.x + bear.facing.x * reach, bear.y + bear.facing.y * reach, 'miss', '#d8d8d8');
+    });
     // Scene events outlive a restart, so drop these listeners when the round ends.
     this.events.once('shutdown', () =>
-      ['hit', 'guardBreak', 'knockout', 'sfx', 'swipeLanded', 'flash'].forEach((e) => this.events.off(e)),
+      ['hit', 'guardBreak', 'knockout', 'sfx', 'swipeLanded', 'flash', 'parry', 'swipeMissed'].forEach((e) => this.events.off(e)),
     );
 
     this.hitStop = 0;
@@ -135,6 +140,7 @@ export class GameScene extends Phaser.Scene {
   playerAction(action) {
     if (this.isGuest) {
       this.pendingActions[action] = true;
+      if (action !== 'dash' && this.mirror.predictAttack(action) && action === 'charge') audio.chargeUp();
     } else if (this.player) {
       this.runAction(this.player, action, this.moveDir());
     }
@@ -222,7 +228,7 @@ export class GameScene extends Phaser.Scene {
         net.removeGuest(id);
         return;
       }
-      net.sendTo(id, { ...snap, fx: this.fxQueue.filter((fx) => !fx.to || fx.to === id) });
+      net.sendTo(id, { ...snap, fx: this.fxQueue.filter((fx) => (!fx.to || fx.to === id) && fx.skip !== id) });
     });
     this.fxQueue = [];
   }
@@ -240,7 +246,7 @@ export class GameScene extends Phaser.Scene {
     const pointer = this.input.activePointer;
     pointer.updateWorldPoint(this.cameras.main);
     this.player?.aim(pointer.worldX - this.player.x, pointer.worldY - this.player.y);
-    this.mirror.update(dt, dir);
+    this.mirror.update(dt, dir, !document.hidden && pointer.rightButtonDown());
 
     this.netTimer += dt;
     if (this.netTimer >= 1 / CONFIG.online.inputsPerSecond) {
@@ -453,10 +459,22 @@ export class GameScene extends Phaser.Scene {
 
   playSfx(name, source) {
     audio[name](this.volumeAt(source));
-    this.queueFx({ k: 'sfx', n: name, x: Math.round(source.x), y: Math.round(source.y) });
+    // A guest already played their own charge-up when they pressed the key.
+    const skip = name === 'chargeUp' && source.remote ? source.netId : undefined;
+    this.queueFx({ k: 'sfx', n: name, x: Math.round(source.x), y: Math.round(source.y), skip });
   }
 
-  onKnockout({ victim, killer }) {
+  onParry({ defender, attacker }) {
+    this.floatText(defender.x, defender.y - defender.radius - 8, 'PARRY!', '#ffd34d');
+    this.burst(defender.x + defender.facing.x * defender.radius, defender.y + defender.facing.y * defender.radius, 0xffffff, 10);
+    this.playSfx('parry', defender);
+    if (this.mode === 'solo' && (defender.isPlayer || attacker.isPlayer)) this.hitStop = CONFIG.feel.hitStopMs * 1.6;
+    this.shakeFor(attacker, 120, 0.005);
+    this.shakeFor(defender, 60, 0.003);
+  }
+
+  onKnockout({ victim, killer, gain }) {
+    if (gain >= 1) this.floatText(killer.x, killer.y - killer.radius - 24, `+${Math.round(gain)} lb`, '#ffd34d');
     const solo = this.mode === 'solo'; // online there's more than one "you", so use names
     const who = (b) => (solo && b.isPlayer ? 'You' : b.name);
     this.announce(`${who(killer)} knocked out ${solo && victim.isPlayer ? 'you' : victim.name}!`);
