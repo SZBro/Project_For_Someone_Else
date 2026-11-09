@@ -100,6 +100,7 @@ export class GameScene extends Phaser.Scene {
     this.over = false;
 
     if (this.started) {
+      audio.startMusic();
       if (this.player) this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
       this.scene.launch('UI');
     } else {
@@ -296,6 +297,7 @@ export class GameScene extends Phaser.Scene {
 
   // Start screen: the river keeps running with NPC bears while the menu card sits on top.
   showMenu() {
+    audio.startMenuMusic();
     const p = this.player;
     p.dead = true; // out of play: NPCs ignore it and controls do nothing
     p.respawnTimer = Infinity;

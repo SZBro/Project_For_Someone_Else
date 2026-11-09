@@ -1,4 +1,4 @@
-// Placeholder sound effects and music, synthesized with Web Audio so no audio files are needed.
+// Sound effects are synthesized with Web Audio; background music is loaded from public/audio.
 
 const SETTINGS_KEY = 'fatbear-audio';
 
@@ -9,12 +9,17 @@ class Audio {
     this.sfxBus = null;
     this.musicBus = null;
     this.noise = null;
-    this.musicTimer = null;
+    this.menuMusicElement = null;
+    this.gameMusicElement = null;
+    this.menuMusicGain = null;
+    this.gameMusicGain = null;
+    this.musicMode = 'menu';
+    this.musicFadeTimer = null;
     const saved = loadSettings();
     this.soundOn = saved.soundOn ?? true;
     this.musicOn = saved.musicOn ?? true;
-    this.soundVolume = normalizeVolume(saved.soundVolume);
-    this.musicVolume = normalizeVolume(saved.musicVolume);
+    this.soundVolume = normalizeVolume(saved.soundVolume ?? 0.6);
+    this.musicVolume = normalizeVolume(saved.musicVolume ?? 0.3);
     this.muted = false;
   }
 
@@ -29,10 +34,18 @@ class Audio {
       this.musicBus = this.ctx.createGain();
       this.musicBus.connect(this.master);
       this.noise = makeNoiseBuffer(this.ctx);
+      this.menuMusicGain = this.ctx.createGain();
+      this.menuMusicGain.gain.value = 0;
+      this.menuMusicGain.connect(this.musicBus);
+      this.gameMusicGain = this.ctx.createGain();
+      this.gameMusicGain.gain.value = 0;
+      this.gameMusicGain.connect(this.musicBus);
+      this.menuMusicElement = this.createMusicElement('menu.mp3', this.menuMusicGain);
+      this.gameMusicElement = this.createMusicElement('background.mp3', this.gameMusicGain);
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
     this.applyVolumes();
-    if (this.musicOn) this.startMusic();
+    if (this.musicOn) this.playCurrentMusic();
   }
 
   setSound(on) {
@@ -51,7 +64,7 @@ class Audio {
     this.musicOn = on;
     saveSettings(this);
     if (this.ctx) {
-      if (on) this.startMusic();
+      if (on) this.playCurrentMusic();
       else this.stopMusic();
     }
     this.applyVolumes();
@@ -73,7 +86,7 @@ class Audio {
     if (!this.ctx) return;
     this.master.gain.value = this.muted ? 0 : 1;
     this.sfxBus.gain.value = this.soundOn ? 0.5 * this.soundVolume : 0;
-    this.musicBus.gain.value = this.musicOn ? 0.16 * this.musicVolume : 0;
+    this.musicBus.gain.value = this.musicOn ? 0.5 * this.musicVolume : 0;
   }
 
   get ready() {
@@ -180,81 +193,62 @@ class Audio {
     src.stop(t + dur + 0.02);
   }
 
-  // ---- Music: a slow, warm chord loop with a soft wandering melody. ----
+  createMusicElement(filename, gain) {
+    const element = new window.Audio(`${import.meta.env.BASE_URL}audio/${filename}`);
+    element.loop = true;
+    element.addEventListener('error', () => {
+      console.error(`Failed to load ${filename}:`, element.error);
+    });
+    this.ctx.createMediaElementSource(element).connect(gain);
+    return element;
+  }
+
+  startMenuMusic() {
+    this.switchMusic('menu');
+  }
 
   startMusic() {
-    if (this.musicTimer || !this.ctx) return;
-    const beat = 60 / 72; // 72 bpm
-    // Generic circle-of-fifths jazz progression, 2 bars per chord (MIDI notes).
-    const chords = [
-      [57, 60, 64, 67], // Am7
-      [50, 57, 60, 65], // Dm7
-      [55, 59, 62, 65], // G7
-      [48, 55, 59, 64], // Cmaj7
-      [53, 57, 60, 64], // Fmaj7
-      [47, 53, 57, 62], // Bm7b5
-      [52, 56, 59, 62], // E7
-      [57, 60, 64, 67], // Am7
-    ];
-    const scale = [57, 60, 62, 64, 67, 69, 72, 74, 76]; // A minor pentatonic-ish
-    let step = 0;
-    let next = this.ctx.currentTime + 0.1;
-    let lastNote = 4;
+    this.switchMusic('game');
+  }
 
-    const schedule = () => {
-      while (next < this.ctx.currentTime + 0.5) {
-        const chord = chords[Math.floor(step / 8) % chords.length];
-        if (step % 8 === 0) chord.forEach((n) => this.pad(midi(n), next, beat * 7.5));
-        if (step % 2 === 0) this.pluck(midi(chord[0] - 12), next, beat * 1.5, 0.5);
-        // Melody: wander a step or two along the scale, with rests.
-        if (Math.random() < 0.45) {
-          lastNote = Math.max(0, Math.min(scale.length - 1, lastNote + Math.round((Math.random() - 0.5) * 3)));
-          this.pluck(midi(scale[lastNote] + 12), next + (Math.random() < 0.3 ? beat / 2 : 0), beat * 1.2, 0.35);
-        }
-        step++;
-        next += beat;
+  switchMusic(mode) {
+    this.musicMode = mode;
+    if (!this.ctx || !this.musicOn) return;
+    this.playCurrentMusic();
+  }
+
+  playCurrentMusic() {
+    const targetElement = this.musicMode === 'menu' ? this.menuMusicElement : this.gameMusicElement;
+    const previousElement = this.musicMode === 'menu' ? this.gameMusicElement : this.menuMusicElement;
+    const targetGain = this.musicMode === 'menu' ? this.menuMusicGain : this.gameMusicGain;
+    const previousGain = this.musicMode === 'menu' ? this.gameMusicGain : this.menuMusicGain;
+    const now = this.ctx.currentTime;
+    const fadeDuration = 1;
+
+    clearTimeout(this.musicFadeTimer);
+    [targetGain, previousGain].forEach((gain) => {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+    });
+    targetGain.gain.linearRampToValueAtTime(this.musicMode === 'menu' ? 0.2 : 1, now + fadeDuration);
+    previousGain.gain.linearRampToValueAtTime(0, now + fadeDuration);
+
+    targetElement.play().catch((error) => {
+      if (error.name !== 'AbortError') {
+        console.error(`Unable to play ${this.musicMode} music:`, error);
       }
-    };
-    schedule();
-    this.musicTimer = setInterval(schedule, 200);
+    });
+    this.musicFadeTimer = setTimeout(() => {
+      if (this.musicMode === 'menu') this.gameMusicElement.pause();
+      else this.menuMusicElement.pause();
+    }, fadeDuration * 1000);
   }
 
   stopMusic() {
-    clearInterval(this.musicTimer);
-    this.musicTimer = null;
+    clearTimeout(this.musicFadeTimer);
+    this.menuMusicElement?.pause();
+    this.gameMusicElement?.pause();
   }
-
-  pad(freq, t, dur) {
-    const osc = this.ctx.createOscillator();
-    const f = this.ctx.createBiquadFilter();
-    const g = this.ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.value = freq;
-    f.type = 'lowpass';
-    f.frequency.value = 900;
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.18, t + 0.8);
-    g.gain.linearRampToValueAtTime(0, t + dur);
-    osc.connect(f).connect(g).connect(this.musicBus);
-    osc.start(t);
-    osc.stop(t + dur + 0.05);
-  }
-
-  pluck(freq, t, dur, level) {
-    const osc = this.ctx.createOscillator();
-    const g = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    g.gain.setValueAtTime(level, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    osc.connect(g).connect(this.musicBus);
-    osc.start(t);
-    osc.stop(t + dur + 0.05);
-  }
-}
-
-function midi(n) {
-  return 440 * Math.pow(2, (n - 69) / 12);
 }
 
 function makeNoiseBuffer(ctx) {
