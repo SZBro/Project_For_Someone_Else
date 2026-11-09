@@ -253,12 +253,22 @@ They also hold grudges against whoever hit them, retreat to rest when hurt, wand
 
 ---
 
+## 2026-11-08: Added Background Music
+
+**Type:** Feature
+
+**What:** Arranged and recorded a jazzy song to play in the background. Also added some ambient rain noise to play on the menu/lobby and between loops of the main song.
+
+**Why:** Added more cozy ambience to the game.
+
+---
+
 ## Still open
 
 - Whether strict networks need a relay service, if friends can't connect
 - Hands-on testing online between different computers and networks
 - Keeping the game running when the host's tab is hidden: built, but not yet confirmed working
 - Round length: solo is 24 minutes; online lobbies choose 5, 15 or 24
-- Art direction (cozy hand-drawn or paper-cutout) and who makes the art
 - Whether Fat Bear Week or Katmai names and branding can be used
 - Combat and hunting have had scripted tests but little hands-on playtesting
+
