@@ -1,12 +1,22 @@
 import Phaser from 'phaser';
 import { audio } from '../audio.js';
+import { leaveToMenu } from '../net/lobbyUi.js';
 
 export class PauseScene extends Phaser.Scene {
   constructor() {
     super('Pause');
   }
 
-  create() {
+  // data.online: the round keeps going behind the menu, and you can leave the game from here.
+  create(data = {}) {
+    this.online = !!data.online;
+    const leave = document.getElementById('leave-game');
+    leave.hidden = !this.online;
+    leave.onclick = () => leaveToMenu(this.game);
+    document.getElementById('pause-title').textContent = this.online ? 'Menu' : 'Paused';
+    document.getElementById('pause-tag').textContent = this.online
+      ? "The round keeps going. The bears won't wait."
+      : 'Take a breather. The bears will wait.';
     const menu = document.getElementById('pause-menu');
     const resume = document.getElementById('resume');
     const soundVolume = document.getElementById('sound-volume');
@@ -44,6 +54,7 @@ export class PauseScene extends Phaser.Scene {
 
   resumeGame() {
     this.scene.stop();
+    if (this.online) return;
     this.scene.resume('Game');
     this.scene.resume('UI');
   }

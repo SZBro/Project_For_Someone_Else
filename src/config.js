@@ -126,6 +126,17 @@ export const CONFIG = {
     },
   },
 
+  online: {
+    maxPlayers: 6,
+    bearsInRound: 6, // NPC bears fill the spots friends don't take
+    roundMinuteOptions: [5, 15, 24], // real minutes; the clock speeds up so a full day still fits
+    defaultRoundMinutes: 15,
+    snapshotsPerSecond: 20, // how often the host sends the game state
+    inputsPerSecond: 30, // how often guests send their controls
+    hostTimeoutSeconds: 10, // guests give up after this long without hearing from the host
+    guestTimeoutSeconds: 10, // a closed tab doesn't always say goodbye, so the host drops silent guests
+  },
+
   // Wildlife: flees from bears, some steal fish, and all of it can be hunted.
   // hp: damage to bring one down (a swipe does ~22). meat: lbs of food it drops.
   hunting: {

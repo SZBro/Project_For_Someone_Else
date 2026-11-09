@@ -3,6 +3,8 @@ import { GameScene } from './scenes/GameScene.js';
 import { UIScene } from './scenes/UIScene.js';
 import { EndScene } from './scenes/EndScene.js';
 import { PauseScene } from './scenes/PauseScene.js';
+import { initLobbyUi } from './net/lobbyUi.js';
+import { startBackgroundTicker } from './net/backgroundTicker.js';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -13,6 +15,9 @@ const game = new Phaser.Game({
   physics: { default: 'arcade', arcade: { debug: false } },
   scene: [GameScene, UIScene, EndScene, PauseScene],
 });
+
+initLobbyUi(game);
+startBackgroundTicker(game);
 
 // Handy for poking at the game from the browser console while developing.
 if (import.meta.env.DEV) window.game = game;

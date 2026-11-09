@@ -281,6 +281,7 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
 
   flash(color) {
     this.setTint(color);
+    this.scene.events.emit('flash', this, color);
     this.scene.time.delayedCall(110, () => this.active && !this.dead && this.setTint(this.baseTint));
   }
 
@@ -478,8 +479,10 @@ export class Bear extends Phaser.Physics.Arcade.Sprite {
     this.overlay.fillRect(x - w / 2, y - r - 10, w * pct, 4);
 
     // Eat progress ring
-    if (this.eatTarget) {
-      const p = this.eatProgress / this.eatTarget.getData('eatSeconds');
+    // On a guest there's no eat target, just the percentage the host reported.
+    const eating = this.eatTarget || this.netEatPct >= 0;
+    if (eating) {
+      const p = this.eatTarget ? this.eatProgress / this.eatTarget.getData('eatSeconds') : this.netEatPct / 100;
       this.overlay.lineStyle(4, 0xffd34d, 1);
       this.overlay.beginPath();
       this.overlay.arc(x, y, r + 8, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);

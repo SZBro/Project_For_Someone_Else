@@ -11,6 +11,7 @@ export class FoodSystem {
   constructor(scene) {
     this.scene = scene;
     this.items = [];
+    this.nextId = 1;
     this.spots = F.fishingSpots.map((s) => ({ ...s, salmon: [], spawnTimer: 0 }));
     this.waveSpot = null;
     this.waveTimer = F.waveEverySeconds;
@@ -19,6 +20,12 @@ export class FoodSystem {
     this.spots.forEach((spot) => this.drawSpot(spot));
     for (let i = 0; i < F.berryBushes; i++) this.addBush();
     this.spots.forEach((spot) => this.spawnSalmon(spot));
+  }
+
+  // Every item gets an id so the host can tell guests about it.
+  track(item) {
+    item.setData('id', this.nextId++);
+    this.items.push(item);
   }
 
   drawSpot(spot) {
@@ -37,7 +44,7 @@ export class FoodSystem {
     const x = Phaser.Math.Between(80, W.width - 80);
     const bush = this.scene.add.image(x, y, 'bush').setDepth(2);
     bush.setData({ type: 'berries', weight: F.berries.weight, eatSeconds: F.berries.eatSeconds, available: true });
-    this.items.push(bush);
+    this.track(bush);
   }
 
   spawnSalmon(spot, max = F.salmonPerSpotMax) {
@@ -48,7 +55,7 @@ export class FoodSystem {
     fish.setData({ type: 'salmon', weight: F.salmon.weight, eatSeconds: F.salmon.eatSeconds, available: true, spot });
     this.scene.tweens.add({ targets: fish, scale: { from: 0.9, to: 1.15 }, yoyo: true, repeat: -1, duration: 400 });
     spot.salmon.push(fish);
-    this.items.push(fish);
+    this.track(fish);
   }
 
   // A loose salmon on the ground: quick to eat, not tied to a fishing spot.
@@ -56,7 +63,7 @@ export class FoodSystem {
     const fish = this.scene.add.image(x, y, 'salmon').setDepth(3).setRotation(Math.random() * Math.PI * 2);
     fish.setData({ type: 'salmon', weight: F.salmon.weight, eatSeconds: L.looseEatSeconds, available: true, spot: null });
     this.scene.tweens.add({ targets: fish, scale: { from: 0.9, to: 1.15 }, yoyo: true, repeat: -1, duration: 250 });
-    this.items.push(fish);
+    this.track(fish);
     return fish;
   }
 
@@ -77,7 +84,7 @@ export class FoodSystem {
     const meat = this.scene.add.image(x, y, 'meat').setDepth(3).setRotation(Math.random() * Math.PI * 2);
     meat.setData({ type: 'meat', weight, eatSeconds, available: true, spot: null });
     this.scene.tweens.add({ targets: meat, scale: { from: 0.4, to: 1 }, duration: 200, ease: 'Back.easeOut' });
-    this.items.push(meat);
+    this.track(meat);
     return meat;
   }
 

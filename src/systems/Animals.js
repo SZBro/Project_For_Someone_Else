@@ -16,6 +16,7 @@ export class AnimalSystem {
     this.scene = scene;
     this.food = food;
     this.critters = [];
+    this.nextId = 1;
 
     for (let h = 0; h < 2; h++) {
       const home = bankPoint(h === 0);
@@ -50,6 +51,7 @@ export class AnimalSystem {
 
   add(kind, x, y, extra = {}) {
     const c = {
+      id: this.nextId++,
       kind,
       sprite: this.scene.add.image(x, y, kind).setDepth(kind === 'gull' ? 7 : 6),
       state: 'idle',

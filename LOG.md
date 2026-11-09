@@ -207,10 +207,29 @@ They also hold grudges against whoever hit them, retreat to rest when hurt, wand
 
 **Why:** Gave users more control over their gaming experience.
 
+---
+
+## 2026-11-08: Lobbies and playing with friends
+
+**Type:** Feature
+
+**What:** Added online play where one player's browser hosts the game:
+- Host a lobby, share a 4-letter code or invite link, and see who joined; the host picks a round length and starts
+- The host's browser runs the real game; guests send their controls and draw what the host reports, with their own bear moving immediately so controls feel responsive
+- NPC bears fill empty spots; friends can join mid-round, and a friend who drops out leaves an NPC behind
+- Esc opens a settings menu online (with Leave game), since one player can't pause everyone
+- The game keeps running when an online player's tab is hidden
+- GitHub Pages workflow and relative build paths, so the site can go live
+
+**Why:** The goal is to play with friends, not strangers. A dedicated server costs money and means moving the game rules out of Phaser. Hosting in a browser reuses the existing game code and needs no server of our own. The trade-offs: the round ends if the host leaves, and the host has no lag while everyone else has a little.
+
+---
+
 ## Still open
 
-- Single-player first or online multiplayer?
-- Round length: one 24-minute game day, ~15 minutes, or a full in-game week?
+- Whether strict networks need a relay service, if friends can't connect
+- Hands-on testing online between different computers and networks
+- Round length: solo is 24 minutes; online lobbies choose 5, 15 or 24
 - Art direction (cozy hand-drawn or paper-cutout) and who makes the art
 - Whether Fat Bear Week or Katmai names and branding can be used
 - Combat and hunting have had scripted tests but little hands-on playtesting
