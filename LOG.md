@@ -223,6 +223,8 @@ They also hold grudges against whoever hit them, retreat to rest when hurt, wand
 
 **Why:** The goal is to play with friends, not strangers. A dedicated server costs money and means moving the game rules out of Phaser. Hosting in a browser reuses the existing game code and needs no server of our own. The trade-offs: the round ends if the host leaves, and the host has no lag while everyone else has a little.
 
+**Commit:** `2d530fc` "Add player-hosted lobbies and online play with friends" (PR #2)
+
 ---
 
 ## 2026-11-08: Combat refinement
@@ -237,12 +239,25 @@ They also hold grudges against whoever hit them, retreat to rest when hurt, wand
 
 **Why:** Winning fights paid too little, missing cost too little, and holding block took no skill. Guests' attacks also felt slower than the host's, which matters more now that friends compete in the same lobby.
 
+**Commit:** `1386ad1` "Refine combat: parry, knockout rewards, miss penalties, instant attacks" (PR #3)
+
+---
+
+## 2026-11-08: Published the game
+
+**Type:** Setup
+
+**What:** Turned on GitHub Pages, merged PR #2 and PR #3 into `main`, and published the game at https://szbro.github.io/Project_For_Someone_Else/. Every push to `main` now updates the site. A host tab and a guest tab connected through the public site with an invite link and started a round.
+
+**Why:** So friends can play from a link with nothing to install, and invite links work outside our own computers.
+
 ---
 
 ## Still open
 
 - Whether strict networks need a relay service, if friends can't connect
 - Hands-on testing online between different computers and networks
+- Keeping the game running when the host's tab is hidden: built, but not yet confirmed working
 - Round length: solo is 24 minutes; online lobbies choose 5, 15 or 24
 - Art direction (cozy hand-drawn or paper-cutout) and who makes the art
 - Whether Fat Bear Week or Katmai names and branding can be used
