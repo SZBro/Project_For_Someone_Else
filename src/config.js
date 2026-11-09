@@ -51,6 +51,7 @@ export const CONFIG = {
     regenDelaySeconds: 4, // seconds without being hit before health regenerates
     respawnSeconds: 3,
     deathWeightPenalty: 0.1, // lose 10% of your weight when knocked out
+    knockoutWeightShare: 0.5, // the bear who knocked you out gains this share of what you lost
   },
 
   swipe: {
@@ -62,6 +63,8 @@ export const CONFIG = {
     knockback: 420,
     stunSeconds: 0.3,
     moveSpeedMultiplier: 0.5, // movement while winding up
+    missCooldownSeconds: 1.1, // a swipe that hits nothing takes longer to recover from
+    missStaminaCost: 10, // and costs extra stamina
   },
 
   stamina: {
@@ -99,6 +102,11 @@ export const CONFIG = {
     damageMultiplier: 0.15,
     knockbackMultiplier: 0.3,
     moveSpeedMultiplier: 0.4,
+    // Parry: start blocking just before a swipe lands. No damage, and the attacker is staggered.
+    parrySeconds: 0.2, // how long after raising your guard a parry works
+    parryCooldownSeconds: 0.8, // mashing block won't work: one parry attempt per this long
+    parryStaggerSeconds: 0.7, // how long the attacker is left open
+    parryKnockback: 300,
   },
 
   npc: {

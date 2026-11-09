@@ -10,6 +10,7 @@ const FOLLOW_OTHERS = 14;
 const FOLLOW_SELF = 6; // gentle, because your own bear is already predicted locally
 const FOLLOW_SELF_FORCED = 16; // while knocked back, dashing or charging, trust the host
 const SNAP_DISTANCE = 160; // further off than this, jump straight there
+const PREDICTION_GRACE = 0.6; // seconds to wait for the host to confirm a predicted attack
 
 // A guest doesn't run the game. It draws what the host reports, and moves its own
 // bear immediately from local input so the controls feel responsive.
@@ -56,8 +57,8 @@ export class GuestMirror {
       bear.dashTimer = f.dashing ? 1 : 0;
       bear.chargeTimer = f.charging ? 1 : 0;
       bear.stunTimer = f.stunned ? 1 : 0;
-      bear.windupTimer = s.wu / 100;
-      bear.chargeWindupTimer = s.cu / 100;
+      bear.parryTimer = f.parrying ? 1 : 0;
+      this.applyWindups(bear, s, f);
       bear.netEatPct = s.e;
       bear.respawnTimer = s.r / 100;
       bear.swipeCooldown = s.sc / 100;
@@ -69,9 +70,8 @@ export class GuestMirror {
         if (!f.dead) bear.setPosition(s.x, s.y);
       }
       // Your own aim stays local, except while a wind-up has locked it.
-      if (!bear.isPlayer || bear.isWindingUp || bear.isChargingUp || bear.isCharging) {
-        bear.facing.setToPolar(s.a / 100);
-      }
+      const locked = bear.isWindingUp || bear.isChargingUp || bear.isCharging;
+      if (!bear.isPlayer || (locked && !bear.predicted)) bear.facing.setToPolar(s.a / 100);
     }
     for (const [id, bear] of this.bears) {
       if (!seen.has(id)) {
@@ -80,6 +80,41 @@ export class GuestMirror {
         this.bears.delete(id);
       }
     }
+  }
+
+  // Your own attack starts on your screen right away. Until the host confirms it,
+  // keep the local wind-up instead of the host's "nothing is happening yet".
+  applyWindups(bear, s, flags) {
+    if (bear.predicted) {
+      const confirmed = bear.predicted.kind === 'swipe' ? s.wu > 0 : s.cu > 0 || flags.charging;
+      if (!confirmed) return;
+      bear.predicted = null;
+    }
+    bear.windupTimer = s.wu / 100;
+    bear.chargeWindupTimer = s.cu / 100;
+  }
+
+  // Start a swipe or charge wind-up locally, using the same rules the host will check.
+  predictAttack(kind) {
+    const b = this.scene.player;
+    if (!b || b.predicted || !b.canAct || b.blocking || b.isWindingUp || b.isChargingUp) return false;
+    const swipe = kind === 'swipe';
+    const cooldown = swipe ? b.swipeCooldown : b.chargeCooldown;
+    const cost = swipe ? CONFIG.stamina.swipeCost : CONFIG.stamina.chargeCost;
+    if (cooldown > 0 || b.stamina < cost) return false;
+
+    const windup = swipe ? CONFIG.swipe.windupSeconds : CONFIG.charge.windupSeconds;
+    if (swipe) b.windupTimer = windup;
+    else b.chargeWindupTimer = windup;
+    b.predicted = { kind, expires: windup + PREDICTION_GRACE };
+    return true;
+  }
+
+  updatePrediction(b, dt) {
+    if (b.predicted.kind === 'swipe') b.windupTimer = Math.max(0, b.windupTimer - dt);
+    else b.chargeWindupTimer = Math.max(0, b.chargeWindupTimer - dt);
+    b.predicted.expires -= dt;
+    if (b.predicted.expires <= 0) b.predicted = null; // the host never started it; go back to its view
   }
 
   addBear(s) {
@@ -178,8 +213,13 @@ export class GuestMirror {
   }
 
   // Runs every frame: moves everything smoothly toward its latest reported position.
-  update(dt, moveDir) {
+  update(dt, moveDir, blockHeld) {
     for (const bear of this.bears.values()) {
+      if (bear.isPlayer) {
+        if (bear.predicted) this.updatePrediction(bear, dt);
+        // Your guard goes up as soon as you press, so timing a parry doesn't feel delayed.
+        bear.blocking = blockHeld && bear.canAct && !bear.isWindingUp && !bear.isChargingUp && bear.stamina > 0;
+      }
       if (!bear.dead) this.moveBear(bear, dt, moveDir);
       if (bear.isDashing || bear.isCharging) bear.spawnGhost();
       bear.setRotation(bear.facing.angle());

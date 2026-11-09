@@ -126,6 +126,11 @@ class Audio {
     this.noiseSweep({ from: 3000, to: 600, dur: 0.6, gain: 0.35, type: 'lowpass' });
   }
 
+  parry(vol = 1) {
+    this.tone({ type: 'triangle', from: 1500, to: 1900, dur: 0.14, gain: 0.45 * vol });
+    this.tone({ type: 'sine', from: 750, to: 950, dur: 0.2, gain: 0.3 * vol });
+  }
+
   knockout(vol = 1) {
     [0, 0.12, 0.24].forEach((t, i) => this.tone({ type: 'triangle', from: 440 / (i + 1), to: 330 / (i + 1), dur: 0.14, gain: 0.3 * vol, delay: t }));
   }

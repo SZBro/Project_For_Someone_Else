@@ -225,6 +225,20 @@ They also hold grudges against whoever hit them, retreat to rest when hurt, wand
 
 ---
 
+## 2026-11-08: Combat refinement
+
+**Type:** Feature
+
+**What:**
+- **Parry:** raising a block just before a swipe lands takes no damage and staggers the attacker. Limited to one attempt every 0.8 seconds so it can't be mashed.
+- **Knockout reward:** the winner gains half of the weight the loser drops
+- **Missed swipes:** a swipe that hits nothing has a longer recovery and costs extra stamina
+- **Instant attacks for guests:** a guest's swipe or charge wind-up, and their block, show on their own screen right away instead of after the host responds
+
+**Why:** Winning fights paid too little, missing cost too little, and holding block took no skill. Guests' attacks also felt slower than the host's, which matters more now that friends compete in the same lobby.
+
+---
+
 ## Still open
 
 - Whether strict networks need a relay service, if friends can't connect

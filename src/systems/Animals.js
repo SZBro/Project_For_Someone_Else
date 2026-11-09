@@ -85,18 +85,22 @@ export class AnimalSystem {
   }
 
   // A bear's swipe landed: animals in the swipe cone get hit, the rest nearby scatter.
+  // Returns whether it hit anything.
   onSwipe(bear, reach) {
+    let hit = false;
     for (const c of [...this.critters]) {
       const s = c.sprite;
       const d = Phaser.Math.Distance.Between(bear.x, bear.y, s.x, s.y);
       if (d > reach + 12) continue;
       if (this.hittable(c) && bear.inFrontCone(s.x, s.y, CONFIG.swipe.arcDegrees)) {
         this.damage(c, CONFIG.swipe.damage, bear);
+        hit = true;
       } else if (c.kind !== 'eagle' && c.state !== 'flying') {
         if (c.carrying) this.drop(c);
         this.startFlee(c, bear);
       }
     }
+    return hit;
   }
 
   // A charging bear runs over any animal it touches.
